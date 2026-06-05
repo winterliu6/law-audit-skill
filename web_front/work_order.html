@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>法务审核系统 - 工单管理</title><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"Microsoft YaHei",sans-serif;background:#f0f2f5;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#1a237e;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;white-space:nowrap}
+.topbar nav{display:flex;gap:4px}
+.topbar nav a{color:rgba(255,255,255,.7);text-decoration:none;padding:8px 16px;border-radius:6px;font-size:14px;transition:all .15s;white-space:nowrap}
+.topbar nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+.topbar nav a.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
+.topbar .info{display:flex;align-items:center;gap:14px;font-size:13px;white-space:nowrap}
+.topbar .info .model-tag{background:rgba(255,255,255,.15);padding:4px 10px;border-radius:12px;font-size:12px}
+.topbar .info .btn-login{background:#4caf50;border:none;color:#fff;padding:5px 16px;border-radius:4px;cursor:pointer;font-size:13px}
+.topbar .info .btn-logout{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:4px 14px;border-radius:4px;cursor:pointer;font-size:13px}
+.topbar .info .btn-logout:hover{background:rgba(255,255,255,.15)}
+.content{flex:1;overflow-y:auto;padding:28px 40px}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999}
+.modal{background:#fff;border-radius:12px;padding:32px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h2{text-align:center;color:#1a237e;margin-bottom:24px}
+.modal input{width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:6px;margin-bottom:14px;font-size:14px;outline:none}
+.modal input:focus{border-color:#1a237e}
+.modal .btn-row{display:flex;gap:10px;margin-top:8px}
+.modal button{flex:1;padding:10px;border:none;border-radius:6px;font-size:14px;cursor:pointer}
+.modal .btn-primary{background:#1a237e;color:#fff}
+.modal .error{color:#c62828;font-size:13px;margin-bottom:8px;display:none}
+.modal .tabs{display:flex;margin-bottom:20px}
+.modal .tabs button{flex:1;padding:8px;background:transparent;border:none;border-bottom:2px solid transparent;font-size:14px;cursor:pointer;color:#666}
+.modal .tabs button.active{border-bottom-color:#1a237e;color:#1a237e;font-weight:600}
+.tabs{display:flex;gap:8px;margin-bottom:20px}.tab-btn{padding:8px 20px;border:1px solid #d0d0d0;border-radius:20px;background:#fff;font-size:13px;cursor:pointer}.tab-btn.active{background:#1a237e;color:#fff;border-color:#1a237e}
+.order-list{display:flex;flex-direction:column;gap:12px}.order-card{background:#fff;border-radius:8px;padding:16px 20px;border-left:4px solid #1a237e;display:flex;justify-content:space-between;align-items:center}
+.oc .left{flex:1}.oc .title{font-size:15px;font-weight:600;color:#333;margin-bottom:6px}.oc .desc{font-size:13px;color:#666}.oc .meta{font-size:12px;color:#999;display:flex;gap:16px}
+.btn-sm{padding:6px 14px;border:none;border-radius:4px;font-size:12px;cursor:pointer}.btn-accept{background:#1a237e;color:#fff}.btn-complete{background:#4caf50;color:#fff}.btn-return{background:#ff9800;color:#fff}
+.empty{text-align:center;color:#999;padding:48px;font-size:14px}
+.spp{padding:2px 8px;border-radius:10px;font-size:11px;display:inline-block;margin-left:8px}
+.s-pending{background:#fff3e0;color:#e65100}.s-accepted{background:#e3f2fd;color:#0d47a1}.s-done{background:#e8f5e9;color:#2e7d32}.s-returned{background:#fce4ec;color:#c62828}
+</style></head><body>
+<div class="topbar"><h1>⚖️ 法务审核系统</h1><nav><a href="/">法务咨询</a><a href="/audit">合同审核</a><a href="/work-order" class="active">工单管理</a><a href="/history">历史记录</a><a href="/admin">管理后台</a></nav><div class="info"><span class="model-tag" id="modelTag">--</span><span id="userDisplay" onclick="openModal()" style="cursor:pointer">游客</span><button class="btn-login" id="btnLogin" onclick="openModal()" style="display:none">登录</button><button class="btn-logout" id="btnLogout" onclick="doLogout()" style="display:none">退出</button></div></div>
+<div class="content">
+  <h2 style="color:#1a237e;margin-bottom:20px;font-size:20px">📁 工单管理</h2>
+  <div class="tabs"><button class="tab-btn active" onclick="filterOrders(null,this)">全部</button><button class="tab-btn" onclick="filterOrders('pending',this)">待处理</button><button class="tab-btn" onclick="filterOrders('accepted',this)">处理中</button><button class="tab-btn" onclick="filterOrders('done',this)">已完成</button></div>
+  <div class="order-list" id="orderList"><div class="empty">加载中...</div></div>
+</div>
+<div class="modal-overlay" id="loginModal" style="display:none">
+  <div class="modal">
+    <h2>⚖️ 法务审核系统</h2>
+    <div class="tabs"><button class="active" onclick="switchTab('login')">登录</button><button onclick="switchTab('register')">注册</button></div>
+    <div id="errorBox" class="error"></div>
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <input type="text" id="authUser" placeholder="用户名">
+      <input type="password" id="authPass" placeholder="密码">
+      <div class="btn-row"><button class="btn-primary" onclick="doAuth()">登 录</button></div>
+    </div>
+    <!-- 注册表单 -->
+    <div id="registerForm" style="display:none">
+      <select id="regCompany"><option value="">选择公司</option></select>
+      <select id="regDept"><option value="">选择部门</option></select>
+      <select id="regName"><option value="">选择人员姓名</option></select>
+      <input type="text" id="regUser" placeholder="用户名(字母+数字,4-20位)">
+      <input type="password" id="regPass" placeholder="密码(≥6位,字母+数字)">
+      <div class="btn-row"><button class="btn-primary" onclick="doRegister()">注 册</button></div>
+    </div>
+  </div>
+</div>
+<script>let authMode='login',currentUser=null;
+function switchTab(m){
+  authMode=m;
+  document.querySelectorAll('.modal .tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.modal .tabs button:'+(m==='login'?'first-child':'last-child')).classList.add('active');
+  document.getElementById('loginForm').style.display=m==='login'?'':'none';
+  document.getElementById('registerForm').style.display=m==='register'?'':'none';
+  document.getElementById('errorBox').style.display='none';
+}
+function doAuth(){const u=document.getElementById('authUser').value.trim(),p=document.getElementById('authPass').value.trim();if(!u||!p){showError('请输入用户名和密码');return}const fd=new FormData();fd.append('username',u);fd.append('password',p);if(authMode==='login')fd.append('device_fingerprint',navigator.userAgent+'|'+screen.width+'x'+screen.height);fetch('/api/'+authMode,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.code!==0){showError(d.msg||d.detail||'操作失败');return};if(authMode==='register'){switchTab('login');showError('注册成功，请登录');return};currentUser=d.data;document.getElementById('loginModal').style.display='none';document.getElementById('userDisplay').textContent=currentUser.username+' ('+currentUser.role+')';
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');if(bL)bL.style.display='none';if(bO)bO.style.display='inline-block';loadModelStatus();if(typeof onAuth==='function')onAuth()}).catch(()=>showError('网络错误'))}
+function showError(m){const el=document.getElementById('errorBox');el.textContent=m;el.style.display='block'}
+function openModal(){document.getElementById('loginModal').style.display='flex';loadOrgOptions();}
+async function doLogout(){
+  try{await fetch('/api/logout',{method:'POST'})}catch(e){}
+  document.cookie='law_token=;max-age=0;path=/;domain='+location.hostname;
+  document.cookie='law_token=;max-age=0;path=/';
+  localStorage.removeItem('guest_token');
+  location.reload();
+}
+function loadModelStatus(){fetch('/api/admin/model-status').then(r=>r.json()).then(d=>{if(d.code===0&&d.data.model){const m=typeof d.data.model==='object'?d.data.model.default:d.data.model;document.getElementById('modelTag').textContent='模型: '+m}}).catch(()=>{})}
+function esc(t){return t?t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function checkAuth(){return fetch('/api/me').then(r=>{if(r.ok)return r.json();throw new Error()}).then(d=>{if(d.code===0){currentUser=d.data;document.getElementById('loginModal').style.display='none';document.getElementById('userDisplay').textContent=currentUser.username+' ('+currentUser.role+')';
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');if(bL)bL.style.display='none';if(bO)bO.style.display='inline-block';loadModelStatus();if(typeof onAuth==='function')onAuth();return true}throw new Error()}).catch(()=>{
+  var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+  if(bL)bL.style.display='inline-block';if(bO)bO.style.display='none';
+  document.getElementById('userDisplay').textContent='游客';
+  return false;
+})}
+checkAuth();
+let currentFilter=null;function onAuth(){loadOrders()}
+function loadOrders(status){
+  const url=status?'/api/workorders?status='+status:'/api/workorders';
+  fetch(url).then(r=>r.json()).then(d=>{
+    if(d.code!==0)return;const list=d.data||[];const el=document.getElementById('orderList');
+    if(!list.length){el.innerHTML='<div class="empty">暂无工单</div>';return}
+    const rn={csr:'客服',law:'法务',audit:'审核',sort:'归档',kb:'知识库'},st={pending:'待处理',accepted:'处理中',done:'已完成',returned:'已退回'},sc={pending:'s-pending',accepted:'s-accepted',done:'s-done',returned:'s-returned'};
+    el.innerHTML=list.map(o=>'<div class="order-card"><div><div>'+esc(o.title)+'<span class="spp '+sc[o.status]+'">'+st[o.status]+'</span></div><div style="font-size:13px;color:#666;margin:4px 0">'+esc(o.description||'')+'</div><div style="font-size:12px;color:#999;display:flex;gap:16px"><span>指派: '+(rn[o.assigned_role]||o.assigned_role)+'</span><span>'+o.created_at+'</span>'+(o.result?'<span>结果: '+esc(o.result)+'</span>':'')+'</div></div><div>'+(o.status==='pending'?'<button class="btn-sm btn-accept" onclick="actOrd('+o.id+',\'accept\')">接单</button>':'')+(o.status==='accepted'?'<button class="btn-sm btn-complete" onclick="actOrd('+o.id+',\'complete\')">完成</button> <button class="btn-sm btn-return" onclick="actOrd('+o.id+',\'return\')">退回</button>':'')+'</div></div>').join('');
+  }).catch(()=>{})
+}
+function filterOrders(s,btn){currentFilter=s;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');loadOrders(s)}
+function actOrd(id,act){
+  if(act==='complete'){const r=prompt('处理结果：');if(r===null)return;fetch('/api/workorder/'+id+'/complete',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({result:r})}).then(r=>r.json()).then(d=>{if(d.code===0)loadOrders(currentFilter);else alert(d.msg)}).catch(()=>alert('失败'));
+  }else if(act==='return'){const r=prompt('退回原因：');if(r===null)return;fetch('/api/workorder/'+id+'/return',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({reason:r})}).then(r=>r.json()).then(d=>{if(d.code===0)loadOrders(currentFilter);else alert(d.msg)}).catch(()=>alert('失败'));
+  }else{fetch('/api/workorder/'+id+'/accept',{method:'PUT'}).then(r=>r.json()).then(d=>{if(d.code===0)loadOrders(currentFilter);else alert(d.msg)}).catch(()=>alert('失败'))}
+}
+</script></body></html>

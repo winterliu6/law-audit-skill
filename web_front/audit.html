@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>法务审核系统 - 合同审核</title><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"Microsoft YaHei",sans-serif;background:#f0f2f5;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#1a237e;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;white-space:nowrap}
+.topbar nav{display:flex;gap:4px}
+.topbar nav a{color:rgba(255,255,255,.7);text-decoration:none;padding:8px 16px;border-radius:6px;font-size:14px;transition:all .15s;white-space:nowrap}
+.topbar nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+.topbar nav a.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
+.topbar .info{display:flex;align-items:center;gap:14px;font-size:13px;white-space:nowrap}
+.topbar .info .model-tag{background:rgba(255,255,255,.15);padding:4px 10px;border-radius:12px;font-size:12px}
+.topbar .info .btn-login{background:#4caf50;border:none;color:#fff;padding:5px 16px;border-radius:4px;cursor:pointer;font-size:13px}
+.topbar .info .btn-logout{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:4px 14px;border-radius:4px;cursor:pointer;font-size:13px}
+.topbar .info .btn-logout:hover{background:rgba(255,255,255,.15)}
+.content{flex:1;overflow-y:auto;padding:28px 40px}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999}
+.modal{background:#fff;border-radius:12px;padding:32px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h2{text-align:center;color:#1a237e;margin-bottom:24px}
+.modal input{width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:6px;margin-bottom:14px;font-size:14px;outline:none}
+.modal input:focus{border-color:#1a237e}
+.modal .btn-row{display:flex;gap:10px;margin-top:8px}
+.modal button{flex:1;padding:10px;border:none;border-radius:6px;font-size:14px;cursor:pointer}
+.modal .btn-primary{background:#1a237e;color:#fff}
+.modal .error{color:#c62828;font-size:13px;margin-bottom:8px;display:none}
+.modal .tabs{display:flex;margin-bottom:20px}
+.modal .tabs button{flex:1;padding:8px;background:transparent;border:none;border-bottom:2px solid transparent;font-size:14px;cursor:pointer;color:#666}
+.modal .tabs button.active{border-bottom-color:#1a237e;color:#1a237e;font-weight:600}
+.upload-zone{border:2px dashed #c5cae9;border-radius:12px;padding:40px;text-align:center;background:#fff;margin-bottom:24px;cursor:pointer}
+.upload-zone:hover{border-color:#1a237e}.upload-zone .icon{font-size:48px;margin-bottom:12px}.upload-zone p{color:#666;font-size:14px}.upload-zone input{display:none}
+.contract-list{background:#fff;border-radius:8px;overflow:hidden;margin-bottom:24px}
+.contract-list table{width:100%;border-collapse:collapse}.contract-list th{background:#f5f5f5;padding:12px 16px;text-align:left;font-size:13px;color:#666;font-weight:600}.contract-list td{padding:12px 16px;border-top:1px solid #f0f0f0;font-size:14px}
+.st{padding:2px 10px;border-radius:10px;font-size:12px}.s-uploaded{background:#fff3e0;color:#e65100}.s-auditing{background:#e3f2fd;color:#0d47a1}.s-audited{background:#e8f5e9;color:#2e7d32}
+.btn-sm{padding:4px 12px;border:none;border-radius:4px;font-size:12px;cursor:pointer;margin-left:6px}.btn-audit{background:#1a237e;color:#fff}.btn-download{background:#4caf50;color:#fff}.btn-sm:hover{opacity:.85}
+.risk-panel{background:#fff;border-radius:12px;padding:24px;margin-top:24px;display:none}.risk-panel h3{color:#1a237e;font-size:18px;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e8eaf6}
+.ri{border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:12px;border-left:4px solid #9e9e9e}
+.ri.high{border-left-color:#c62828;background:#fff5f5}.ri.medium{border-left-color:#ef6c00;background:#fff8e1}.ri.low{border-left-color:#2e7d32;background:#f1f8e9}
+.ri .rh{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ri .lv{padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600}
+.ri .lv.high{background:#ffcdd2;color:#c62828}.ri .lv.medium{background:#ffe0b2;color:#ef6c00}.ri .lv.low{background:#c8e6c9;color:#2e7d32}
+.ri .rp{font-size:13px;color:#666}.ri .rc{background:#f5f5f5;padding:10px 12px;border-radius:6px;font-size:13px;margin:8px 0;color:#333;border-left:3px solid #90a4ae}
+.ri .rd{font-size:13px;line-height:1.8;color:#444}.ri .rd strong{color:#1a237e}
+.risk-summary{margin-top:16px;padding:12px 16px;background:#e8eaf6;border-radius:8px;font-size:14px;color:#1a237e}
+.audit-loading{text-align:center;padding:32px;color:#666}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid #e0e0e0;border-top-color:#1a237e;border-radius:50%;animation:spin 1s linear infinite;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style></head><body>
+<div class="topbar"><h1>⚖️ 法务审核系统</h1><nav><a href="/">法务咨询</a><a href="/audit" class="active">合同审核</a><a href="/work-order">工单管理</a><a href="/history">历史记录</a><a href="/admin">管理后台</a></nav><div class="info"><span class="model-tag" id="modelTag">--</span><span id="userDisplay" onclick="openModal()" style="cursor:pointer">游客</span><button class="btn-login" id="btnLogin" onclick="openModal()" style="display:none">登录</button><button class="btn-logout" id="btnLogout" onclick="doLogout()" style="display:none">退出</button></div></div>
+<div class="content">
+  <h2 style="color:#1a237e;margin-bottom:20px;font-size:20px">📋 合同审核</h2>
+  <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📄</div><p>点击或拖拽合同文件到此处上传</p>
+    <p style="font-size:12px;color:#999;margin-top:8px">支持 PDF、DOCX、TXT 格式</p>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.txt" onchange="uploadFile(this)">
+  </div>
+  <div class="contract-list"><table><thead><tr><th>ID</th><th>文件名</th><th>状态</th><th>上传时间</th><th>操作</th></tr></thead>
+  <tbody id="contractBody"><tr><td colspan="5" style="text-align:center;color:#999;padding:24px">加载中...</td></tr></tbody></table></div>
+  <div class="risk-panel" id="riskPanel"><h3 id="riskTitle">🔍 审核结果</h3><div id="riskContent"></div></div>
+</div>
+<div class="modal-overlay" id="loginModal" style="display:none">
+  <div class="modal">
+    <h2>⚖️ 法务审核系统</h2>
+    <div class="tabs"><button class="active" onclick="switchTab('login')">登录</button><button onclick="switchTab('register')">注册</button></div>
+    <div id="errorBox" class="error"></div>
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <input type="text" id="authUser" placeholder="用户名">
+      <input type="password" id="authPass" placeholder="密码">
+      <div class="btn-row"><button class="btn-primary" onclick="doAuth()">登 录</button></div>
+    </div>
+    <!-- 注册表单 -->
+    <div id="registerForm" style="display:none">
+      <select id="regCompany"><option value="">选择公司</option></select>
+      <select id="regDept"><option value="">选择部门</option></select>
+      <select id="regName"><option value="">选择人员姓名</option></select>
+      <input type="text" id="regUser" placeholder="用户名(字母+数字,4-20位)">
+      <input type="password" id="regPass" placeholder="密码(≥6位,字母+数字)">
+      <div class="btn-row"><button class="btn-primary" onclick="doRegister()">注 册</button></div>
+    </div>
+  </div>
+</div>
+<script>let authMode='login',currentUser=null;
+function switchTab(m){
+  authMode=m;
+  document.querySelectorAll('.modal .tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.modal .tabs button:'+(m==='login'?'first-child':'last-child')).classList.add('active');
+  document.getElementById('loginForm').style.display=m==='login'?'':'none';
+  document.getElementById('registerForm').style.display=m==='register'?'':'none';
+  document.getElementById('errorBox').style.display='none';
+}
+function doAuth(){const u=document.getElementById('authUser').value.trim(),p=document.getElementById('authPass').value.trim();if(!u||!p){showError('请输入用户名和密码');return}const fd=new FormData();fd.append('username',u);fd.append('password',p);if(authMode==='login')fd.append('device_fingerprint',navigator.userAgent+'|'+screen.width+'x'+screen.height);fetch('/api/'+authMode,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.code!==0){showError(d.msg||d.detail||'操作失败');return};if(authMode==='register'){switchTab('login');showError('注册成功，请登录');return};currentUser=d.data;document.getElementById('loginModal').style.display='none';document.getElementById('userDisplay').textContent=currentUser.username+' ('+currentUser.role+')';
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');if(bL)bL.style.display='none';if(bO)bO.style.display='inline-block';loadModelStatus();if(typeof onAuth==='function')onAuth()}).catch(()=>showError('网络错误'))}
+function showError(m){const el=document.getElementById('errorBox');el.textContent=m;el.style.display='block'}
+function openModal(){document.getElementById('loginModal').style.display='flex';loadOrgOptions();}
+async function doLogout(){
+  try{await fetch('/api/logout',{method:'POST'})}catch(e){}
+  document.cookie='law_token=;max-age=0;path=/;domain='+location.hostname;
+  document.cookie='law_token=;max-age=0;path=/';
+  localStorage.removeItem('guest_token');
+  location.reload();
+}
+function loadModelStatus(){fetch('/api/admin/model-status').then(r=>r.json()).then(d=>{if(d.code===0&&d.data.model){const m=typeof d.data.model==='object'?d.data.model.default:d.data.model;document.getElementById('modelTag').textContent='模型: '+m}}).catch(()=>{})}
+function esc(t){return t?t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function checkAuth(){return fetch('/api/me').then(r=>{if(r.ok)return r.json();throw new Error()}).then(d=>{if(d.code===0){currentUser=d.data;document.getElementById('loginModal').style.display='none';document.getElementById('userDisplay').textContent=currentUser.username+' ('+currentUser.role+')';
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');if(bL)bL.style.display='none';if(bO)bO.style.display='inline-block';loadModelStatus();if(typeof onAuth==='function')onAuth();return true}throw new Error()}).catch(()=>{
+  var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+  if(bL)bL.style.display='inline-block';if(bO)bO.style.display='none';
+  document.getElementById('userDisplay').textContent='游客';
+  return false;
+})}
+checkAuth();
+function onAuth(){loadContracts()}
+function loadContracts(){
+  fetch('/api/history').then(r=>r.json()).then(d=>{
+    if(d.code!==0)return;const body=document.getElementById('contractBody');const list=d.data.contracts||[];
+    if(!list.length){body.innerHTML='<tr><td colspan="5" style="text-align:center;color:#999;padding:24px">暂无合同</td></tr>';return}
+    body.innerHTML=list.map(c=>'<tr><td>'+c.id+'</td><td>'+esc(c.filename)+'</td><td><span class="st s-'+c.status+'">'+({uploaded:'待审核',auditing:'审核中',audited:'已审核'}[c.status]||c.status)+'</span></td><td>'+c.created_at+'</td><td>'+(c.status==='uploaded'?'<button class="btn-sm btn-audit" onclick="auditContract('+c.id+')">审核</button>':'')+(c.status==='audited'?'<button class="btn-sm btn-audit" onclick="viewRisk('+c.id+')">查看风险</button><button class="btn-sm btn-download" onclick="dlDocx('+c.id+')">下载DOCX</button>':'')+'</td></tr>').join('');
+  }).catch(()=>{})
+}
+function uploadFile(input){
+  const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);
+  fetch('/api/contract/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.code===0){loadContracts();if(d.data&&d.data.id)auditContract(d.data.id)}else alert(d.msg||'上传失败')}).catch(()=>alert('上传失败'));input.value='';
+}
+function auditContract(id){
+  const panel=document.getElementById('riskPanel');const content=document.getElementById('riskContent');
+  document.getElementById('riskTitle').textContent='🔍 正在审核合同 #'+id+'...';
+  content.innerHTML='<div class="audit-loading"><span class="spinner"></span>AI正在分析合同风险，请稍候...</div>';
+  panel.style.display='block';panel.scrollIntoView({behavior:'smooth'});
+  fetch('/api/contract/'+id+'/audit',{method:'POST'}).then(r=>r.json()).then(d=>{
+    loadContracts();
+    if(d.code===0&&d.data&&d.data.risks)renderRisks(d.data.risks,d.data.filename||'合同 #'+id);
+    else if(d.code===0)content.innerHTML='<p style="color:#2e7d32">✅ 审核完成，未发现显著风险</p>';
+    else content.innerHTML='<p style="color:#c62828">❌ '+(d.msg||d.detail||'审核失败')+'</p>';
+  }).catch(()=>{content.innerHTML='<p style="color:#c62828">❌ 网络错误</p>'});
+}
+function viewRisk(id){
+  fetch('/api/contract/'+id+'/audit',{method:'POST'}).then(r=>r.json()).then(d=>{
+    const panel=document.getElementById('riskPanel');panel.style.display='block';
+    if(d.code===0&&d.data&&d.data.risks)renderRisks(d.data.risks,d.data.filename||'合同 #'+id);
+    else document.getElementById('riskContent').innerHTML='<p>暂无风险数据</p>';
+    panel.scrollIntoView({behavior:'smooth'});
+  }).catch(()=>{});
+}
+function renderRisks(risks,filename){
+  const content=document.getElementById('riskContent');
+  document.getElementById('riskTitle').textContent='🔍 审核结果 — '+filename;
+  if(!risks||!risks.length){content.innerHTML='<p style="color:#2e7d32">✅ 未发现风险</p>';return}
+  const hc=risks.filter(r=>r.level==='high').length,mc=risks.filter(r=>r.level==='medium').length,lc=risks.filter(r=>r.level==='low').length;
+  let h='<div class="risk-summary">共发现 <strong>'+risks.length+'</strong> 个风险点：';
+  if(hc)h+=' <span style="color:#c62828">高风险 '+hc+'</span>';if(mc)h+=' <span style="color:#ef6c00">中风险 '+mc+'</span>';if(lc)h+=' <span style="color:#2e7d32">低风险 '+lc+'</span>';
+  h+='</div>';
+  risks.forEach(r=>{
+    const lv=r.level||'low';const lt={high:'高风险',medium:'中风险',low:'低风险'}[lv]||lv;
+    h+='<div class="ri '+lv+'"><div class="rh"><span class="lv '+lv+'">'+lt+'</span><span class="rp">'+esc(r.position||'')+'</span></div>';
+    if(r.clause)h+='<div class="rc">📄 '+esc(r.clause)+'</div>';
+    h+='<div class="rd">';if(r.description)h+='<strong>风险描述：</strong>'+esc(r.description)+'<br>';
+    if(r.law_basis)h+='<strong>法律依据：</strong>'+esc(r.law_basis)+'<br>';if(r.suggestion)h+='<strong>修改建议：</strong>'+esc(r.suggestion);
+    h+='</div></div>';});
+  content.innerHTML=h;
+}
+function dlDocx(id){window.location.href='/api/contract/'+id+'/download-docx'}
+</script></body></html>

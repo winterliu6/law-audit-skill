@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>法务审核系统 - 管理后台</title><style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"Microsoft YaHei",sans-serif;background:#f0f2f5;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:#1a237e;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;white-space:nowrap}
+.topbar nav{display:flex;gap:4px}
+.topbar nav a{color:rgba(255,255,255,.7);text-decoration:none;padding:8px 16px;border-radius:6px;font-size:14px;transition:all .15s;white-space:nowrap}
+.topbar nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+.topbar nav a.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
+.topbar .info{display:flex;align-items:center;gap:14px;font-size:13px;white-space:nowrap}
+.topbar .info .model-tag{background:rgba(255,255,255,.15);padding:4px 10px;border-radius:12px;font-size:12px}
+.topbar .info .btn-login{background:#4caf50;border:none;color:#fff;padding:5px 16px;border-radius:4px;cursor:pointer;font-size:13px}
+.topbar .info .btn-logout{background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:4px 14px;border-radius:4px;cursor:pointer;font-size:13px}
+.topbar .info .btn-logout:hover{background:rgba(255,255,255,.15)}
+.content{flex:1;overflow-y:auto;padding:28px 40px}.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999}
+.modal{background:#fff;border-radius:12px;padding:32px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h2{text-align:center;color:#1a237e;margin-bottom:24px}
+.modal input{width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:6px;margin-bottom:14px;font-size:14px;outline:none}
+.modal input:focus{border-color:#1a237e}
+.modal .btn-row{display:flex;gap:10px;margin-top:8px}
+.modal button{flex:1;padding:10px;border:none;border-radius:6px;font-size:14px;cursor:pointer}
+.modal .btn-primary{background:#1a237e;color:#fff}
+.modal .error{color:#c62828;font-size:13px;margin-bottom:8px;display:none}
+.modal .tabs{display:flex;margin-bottom:20px}
+.modal .tabs button{flex:1;padding:8px;background:transparent;border:none;border-bottom:2px solid transparent;font-size:14px;cursor:pointer;color:#666}
+.modal .tabs button.active{border-bottom-color:#1a237e;color:#1a237e;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:28px}
+.stat-card{background:#fff;border-radius:8px;padding:20px}.stat-card h4{font-size:13px;color:#666;margin-bottom:8px}.stat-card .val{font-size:28px;font-weight:700;color:#1a237e}.stat-card .sub{font-size:12px;color:#999;margin-top:4px}
+.panel{background:#fff;border-radius:8px;padding:20px;margin-bottom:24px}.panel h3{font-size:16px;color:#1a237e;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #e8eaf6}
+.panel table{width:100%;border-collapse:collapse}.panel th{background:#f5f5f5;padding:10px 14px;text-align:left;font-size:13px;color:#666;font-weight:600}.panel td{padding:10px 14px;border-top:1px solid #f0f0f0;font-size:13px}
+.panel .btn-sm{padding:4px 10px;border:none;border-radius:4px;font-size:12px;cursor:pointer;background:#1a237e;color:#fff}
+.btn-rebuild{background:#ff9800;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:13px;cursor:pointer;margin-bottom:16px}
+.mp{background:linear-gradient(135deg,#1a237e,#283593);color:#fff;border-radius:8px;padding:20px;margin-bottom:24px}.mp h3{margin-bottom:12px;font-size:16px}.mp .ir{display:flex;gap:24px;font-size:14px;flex-wrap:wrap}.mp .ir span{opacity:.8}.mp .ir strong{opacity:1}
+.upload-zone{border:2px dashed #c5cae9;border-radius:8px;padding:24px;text-align:center;background:#fafafa;cursor:pointer;margin-bottom:16px}.upload-zone:hover{border-color:#1a237e}.upload-zone input{display:none}
+</style></head><body>
+<div class="topbar"><h1>⚖️ 法务审核系统</h1><nav><a href="/">法务咨询</a><a href="/audit">合同审核</a><a href="/work-order">工单管理</a><a href="/history">历史记录</a><a href="/admin" class="active">管理后台</a></nav><div class="info"><span class="model-tag" id="modelTag">--</span><span id="userDisplay" onclick="openModal()" style="cursor:pointer">游客</span><button class="btn-login" id="btnLogin" onclick="openModal()" style="display:none">登录</button><button class="btn-logout" id="btnLogout" onclick="doLogout()" style="display:none">退出</button></div></div>
+<div class="content">
+  <h2 style="color:#1a237e;margin-bottom:20px;font-size:20px">⚙️ 管理后台</h2>
+  <div class="mp"><h3>🔄 模型同步状态</h3><div class="ir"><span>当前模型: <strong id="modelName">--</strong></span><span>同步状态: <strong id="syncStatus">--</strong></span><span>最后同步: <strong id="syncTime">--</strong></span></div></div>
+  <div class="grid">
+    <div class="stat-card"><h4>客服工单</h4><div class="val" id="st-csr">0</div><div class="sub">已完成: 0</div></div>
+    <div class="stat-card"><h4>法务工单</h4><div class="val" id="st-law">0</div><div class="sub">已完成: 0</div></div>
+    <div class="stat-card"><h4>审核工单</h4><div class="val" id="st-audit">0</div><div class="sub">已完成: 0</div></div>
+    <div class="stat-card"><h4>归档工单</h4><div class="val" id="st-sort">0</div><div class="sub">已完成: 0</div></div>
+    <div class="stat-card"><h4>知识库工单</h4><div class="val" id="st-kb">0</div><div class="sub">已完成: 0</div></div>
+  </div>
+  <div class="panel"><h3>📚 知识库管理</h3>
+    <div class="upload-zone" onclick="document.getElementById('kbInput').click()"><p>📄 点击上传法律文档</p><input type="file" id="kbInput" accept=".pdf,.docx,.txt" onchange="uploadKB(this)"></div>
+    <button class="btn-rebuild" onclick="rebuildIndex()">🔄 全量重建索引</button>
+  </div>
+  <div class="panel"><h3>🏢 组织架构管理</h3>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px">
+      <div style="flex:1;min-width:280px">
+        <h4 style="font-size:14px;color:#333;margin-bottom:10px">手动添加</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="addNodeType" style="padding:8px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px">
+            <option value="company">公司</option><option value="department">部门</option><option value="person">人员</option>
+          </select>
+          <select id="addNodeParent" style="padding:8px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px;min-width:140px;display:none"><option value="">选择上级</option></select>
+          <input type="text" id="addNodeName" placeholder="名称" style="padding:8px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px;flex:1;min-width:120px">
+          <button class="btn-sm" onclick="addOrgNode()">添加</button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:280px">
+        <h4 style="font-size:14px;color:#333;margin-bottom:10px">批量导入</h4>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div class="upload-zone" style="flex:1;padding:12px;margin:0;min-width:180px" onclick="document.getElementById('orgFileInput').click()">
+            <p style="font-size:13px;margin:0">📂 点击上传 Excel/CSV</p>
+            <input type="file" id="orgFileInput" accept=".xlsx,.xls,.csv" onchange="uploadOrgFile(this)" style="display:none">
+          </div>
+          <a href="/api/admin/org/template" download style="font-size:13px;color:#1a237e;white-space:nowrap;text-decoration:underline">📥 下载模板</a>
+        </div>
+      </div>
+    </div>
+    <h4 style="font-size:14px;color:#333;margin-bottom:10px">当前架构树</h4>
+    <div id="orgTree" style="padding:12px;background:#fafafa;border-radius:6px;min-height:60px;font-size:13px;color:#666">加载中...</div>
+  </div>
+  <div class="panel"><h3>👥 用户管理</h3><table><thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>最后登录</th></tr></thead><tbody id="userBody"><tr><td colspan="4" style="text-align:center;color:#999">加载中...</td></tr></tbody></table></div>
+  <div class="panel"><h3>📱 设备绑定</h3><table><thead><tr><th>ID</th><th>用户ID</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody id="deviceBody"><tr><td colspan="5" style="text-align:center;color:#999">加载中...</td></tr></tbody></table></div>
+</div>
+<div class="modal-overlay" id="loginModal" style="display:none">
+  <div class="modal">
+    <h2>⚖️ 法务审核系统</h2>
+    <div class="tabs"><button class="active" onclick="switchTab('login')">登录</button><button onclick="switchTab('register')">注册</button></div>
+    <div id="errorBox" class="error"></div>
+    <!-- 登录表单 -->
+    <div id="loginForm">
+      <input type="text" id="authUser" placeholder="用户名">
+      <input type="password" id="authPass" placeholder="密码">
+      <div class="btn-row"><button class="btn-primary" onclick="doAuth()">登 录</button></div>
+    </div>
+    <!-- 注册表单 -->
+    <div id="registerForm" style="display:none">
+      <select id="regCompany"><option value="">选择公司</option></select>
+      <select id="regDept"><option value="">选择部门</option></select>
+      <select id="regName"><option value="">选择人员姓名</option></select>
+      <input type="text" id="regUser" placeholder="用户名(字母+数字,4-20位)">
+      <input type="password" id="regPass" placeholder="密码(≥6位,字母+数字)">
+      <div class="btn-row"><button class="btn-primary" onclick="doRegister()">注 册</button></div>
+    </div>
+  </div>
+</div>
+<script>let authMode='login',currentUser=null;
+function switchTab(m){
+  authMode=m;
+  document.querySelectorAll('.modal .tabs button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.modal .tabs button:'+(m==='login'?'first-child':'last-child')).classList.add('active');
+  document.getElementById('loginForm').style.display=m==='login'?'':'none';
+  document.getElementById('registerForm').style.display=m==='register'?'':'none';
+  document.getElementById('errorBox').style.display='none';
+}
+function doAuth(){const u=document.getElementById('authUser').value.trim(),p=document.getElementById('authPass').value.trim();if(!u||!p){showError('请输入用户名和密码');return}const fd=new FormData();fd.append('username',u);fd.append('password',p);if(authMode==='login')fd.append('device_fingerprint',navigator.userAgent+'|'+screen.width+'x'+screen.height);fetch('/api/'+authMode,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.code!==0){showError(d.msg||d.detail||'操作失败');return};if(authMode==='register'){switchTab('login');showError('注册成功，请登录');return};currentUser=d.data;document.getElementById('loginModal').style.display='none';document.getElementById('userDisplay').textContent=currentUser.username+' ('+currentUser.role+')';
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');if(bL)bL.style.display='none';if(bO)bO.style.display='inline-block';loadModelStatus();if(typeof onAuth==='function')onAuth()}).catch(()=>showError('网络错误'))}
+function showError(m){const el=document.getElementById('errorBox');el.textContent=m;el.style.display='block'}
+function openModal(){document.getElementById('loginModal').style.display='flex';loadOrgOptions();}
+async function doLogout(){
+  try{await fetch('/api/logout',{method:'POST'})}catch(e){}
+  document.cookie='law_token=;max-age=0;path=/;domain='+location.hostname;
+  document.cookie='law_token=;max-age=0;path=/';
+  localStorage.removeItem('guest_token');
+  location.reload();
+}
+function loadModelStatus(){fetch('/api/admin/model-status').then(r=>r.json()).then(d=>{if(d.code===0&&d.data.model){const m=typeof d.data.model==='object'?d.data.model.default:d.data.model;document.getElementById('modelTag').textContent='模型: '+m}}).catch(()=>{})}
+function esc(t){return t?t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''}
+function checkAuth(){return fetch('/api/me').then(r=>{if(r.ok)return r.json();throw new Error()}).then(d=>{if(d.code===0){currentUser=d.data;document.getElementById('loginModal').style.display='none';document.getElementById('userDisplay').textContent=currentUser.username+' ('+currentUser.role+')';
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+      var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');if(bL)bL.style.display='none';if(bO)bO.style.display='inline-block';loadModelStatus();if(typeof onAuth==='function')onAuth();return true}throw new Error()}).catch(()=>{
+  var bL=document.getElementById('btnLogin');var bO=document.getElementById('btnLogout');
+  if(bL)bL.style.display='inline-block';if(bO)bO.style.display='none';
+  document.getElementById('userDisplay').textContent='游客';
+  return false;
+})}
+checkAuth();
+function onAuth(){loadStats();loadUsers();loadDevices();loadOrgTree();loadOrgParentOptions()}
+function loadModelStatus(){fetch('/api/admin/model-status').then(r=>r.json()).then(d=>{if(d.code===0){const m=typeof d.data.model==='object'?d.data.model.default:d.data.model;document.getElementById('modelTag').textContent='模型: '+(m||'--');document.getElementById('modelName').textContent=m||'未配置';document.getElementById('syncStatus').textContent=d.data.synced?'✅ 已同步':'❌ 未同步';document.getElementById('syncTime').textContent=d.data.last_sync||'--'}}).catch(()=>{})}
+function loadStats(){fetch('/api/admin/stats').then(r=>r.json()).then(d=>{if(d.code===0)for(const[k,v]of Object.entries(d.data)){const el=document.getElementById('st-'+k);if(el){el.textContent=v.total;el.nextElementSibling.textContent='已完成: '+v.done}}}).catch(()=>{})}
+function loadUsers(){fetch('/api/admin/users').then(r=>r.json()).then(d=>{if(d.code!==0)return;document.getElementById('userBody').innerHTML=d.data.map(u=>'<tr><td>'+u.id+'</td><td>'+esc(u.username)+'</td><td>'+u.role+'</td><td>'+u.last_login+'</td></tr>').join('')}).catch(()=>{})}
+function loadDevices(){fetch('/api/admin/devices').then(r=>r.json()).then(d=>{if(d.code!==0)return;document.getElementById('deviceBody').innerHTML=d.data.map(b=>'<tr><td>'+b.id+'</td><td>'+b.user_id+'</td><td>'+(b.approved?'✅ 已批准':'⏳ 待审批')+'</td><td>'+b.created_at+'</td><td>'+(!b.approved?'<button class="btn-sm" onclick="approveDevice('+b.id+')">批准</button>':'--')+'</td></tr>').join('')}).catch(()=>{})}
+function approveDevice(id){fetch('/api/admin/device/approve/'+id,{method:'POST'}).then(r=>r.json()).then(d=>{if(d.code===0)loadDevices();else alert(d.msg)}).catch(()=>alert('失败'))}
+function uploadKB(input){const file=input.files[0];if(!file)return;const fd=new FormData();fd.append('file',file);fetch('/api/admin/kb/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{alert(d.msg||'完成');input.value=''}).catch(()=>{alert('失败');input.value=''})}
+function rebuildIndex(){if(!confirm('确认重建？'))return;fetch('/api/admin/kb/rebuild',{method:'POST'}).then(r=>r.json()).then(d=>alert(d.msg||'完成')).catch(()=>alert('失败'))}
+
+// === 组织架构管理 ===
+function loadOrgTree(){
+  fetch('/api/admin/org/tree').then(r=>r.json()).then(d=>{
+    if(d.code!==0){document.getElementById('orgTree').innerHTML='<span style="color:#999">加载失败</span>';return}
+    const tree=d.data;
+    if(!tree||tree.length===0){document.getElementById('orgTree').innerHTML='<span style="color:#999">暂无组织架构数据，请手动添加或批量导入</span>';return}
+    let html='';
+    function renderNode(n,indent){
+      const icons={company:'🏢',department:'👥',person:'👤'};
+      const dis=n.disabled?' <span style="color:#999;font-size:11px">(已禁用)</span>':'';
+      html+='<div style="padding:3px 0;padding-left:'+indent+'px">'+(icons[n.type]||'')+' <strong>'+esc(n.name)+'</strong>'+dis+
+        ' <span style="font-size:11px;color:#999">('+({company:'公司',department:'部门',person:'人员'}[n.type])+')</span>'+
+        ' <button style="font-size:11px;padding:1px 6px;border:none;border-radius:3px;cursor:pointer;background:#'+(n.disabled?'4caf50':'ff9800')+';color:#fff" onclick="toggleOrgNode('+n.id+','+(!n.disabled)+')">'+(n.disabled?'启用':'禁用')+'</button>'+
+        ' <button style="font-size:11px;padding:1px 6px;border:none;border-radius:3px;cursor:pointer;background:#c62828;color:#fff" onclick="deleteOrgNode('+n.id+')">删除</button></div>';
+      if(n.children)n.children.forEach(c=>renderNode(c,indent+24));
+    }
+    tree.forEach(n=>renderNode(n,0));
+    document.getElementById('orgTree').innerHTML=html;
+  }).catch(()=>{document.getElementById('orgTree').innerHTML='<span style="color:#c62828">网络错误</span>'})
+}
+
+function addOrgNode(){
+  const type=document.getElementById('addNodeType').value;
+  const name=document.getElementById('addNodeName').value.trim();
+  const parentVal=document.getElementById('addNodeParent').value;
+  if(!name){alert('请输入名称');return}
+  const body={node_type:type,name:name};
+  if(type!=='company'&&parentVal)body.parent_id=parseInt(parentVal);
+  fetch('/api/admin/org/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(r=>r.json()).then(d=>{
+      if(d.code===0){document.getElementById('addNodeName').value='';loadOrgTree();loadOrgParentOptions()}
+      else alert(d.msg||'添加失败')
+    }).catch(()=>alert('网络错误'))
+}
+
+function toggleOrgNode(id,disable){
+  fetch('/api/admin/org/'+id+'/disable',{method:'PUT'}).then(r=>r.json()).then(d=>{
+    if(d.code===0)loadOrgTree();else alert(d.msg)
+  }).catch(()=>alert('失败'))
+}
+
+function deleteOrgNode(id){
+  if(!confirm('确认删除？子节点将一并处理'))return;
+  fetch('/api/admin/org/'+id,{method:'DELETE'}).then(r=>r.json()).then(d=>{
+    if(d.code===0){loadOrgTree();loadOrgParentOptions()}else alert(d.msg)
+  }).catch(()=>alert('失败'))
+}
+
+function uploadOrgFile(input){
+  const file=input.files[0];if(!file)return;
+  const fd=new FormData();fd.append('file',file);
+  fetch('/api/admin/org/upload',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    alert(d.msg||'完成');input.value='';
+    if(d.code===0){loadOrgTree();loadOrgParentOptions()}
+  }).catch(()=>{alert('失败');input.value=''})
+}
+
+// 加载上级节点下拉（手动添加时根据类型选择上级）
+function loadOrgParentOptions(){
+  fetch('/api/org/options').then(r=>r.json()).then(d=>{
+    if(d.code!==0)return;
+    const sel=document.getElementById('addNodeParent');
+    const type=document.getElementById('addNodeType').value;
+    sel.innerHTML='<option value="">选择上级</option>';
+    if(type==='company'){sel.style.display='none';return}
+    sel.style.display='';
+    if(type==='department'){
+      d.data.companies.forEach(c=>{sel.innerHTML+='<option value="'+c.id+'">🏢 '+esc(c.name)+'</option>'});
+    }else if(type==='person'){
+      d.data.departments.forEach(dep=>{
+        const comp=d.data.companies.find(c=>c.id===dep.parent_id);
+        sel.innerHTML+='<option value="'+dep.id+'">'+(comp?'🏢'+esc(comp.name)+' / ':'')+'👥 '+esc(dep.name)+'</option>'
+      });
+    }
+  }).catch(()=>{})
+}
+
+document.getElementById('addNodeType').addEventListener('change',loadOrgParentOptions);
+
+// 供弹窗注册表单用的loadOrgOptions（级联下拉）
+function loadOrgOptions(){
+  fetch('/api/org/options').then(r=>r.json()).then(d=>{
+    if(d.code!==0)return;
+    const cs=d.data.companies, ds=d.data.departments, ps=d.data.persons;
+    const selC=document.getElementById('regCompany');
+    const selD=document.getElementById('regDept');
+    const selN=document.getElementById('regName');
+    if(selC){selC.innerHTML='<option value="">选择公司</option>';cs.forEach(c=>selC.innerHTML+='<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>')}
+    if(selD){selD.innerHTML='<option value="">选择部门</option>'}
+    if(selN){selN.innerHTML='<option value="">选择人员姓名</option>'}
+    if(selC)selC.onchange=function(){
+      const comp=cs.find(c=>c.name===this.value);
+      selD.innerHTML='<option value="">选择部门</option>';
+      selN.innerHTML='<option value="">选择人员姓名</option>';
+      if(comp)ds.filter(d=>d.parent_id===comp.id).forEach(d=>selD.innerHTML+='<option value="'+esc(d.name)+'">'+esc(d.name)+'</option>')
+    };
+    if(selD)selD.onchange=function(){
+      const dept=ds.find(dd=>dd.name===this.value);
+      selN.innerHTML='<option value="">选择人员姓名</option>';
+      if(dept)ps.filter(p=>p.parent_id===dept.id).forEach(p=>selN.innerHTML+='<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>')
+    };
+  }).catch(()=>{})
+}
+
+</script></body></html>
