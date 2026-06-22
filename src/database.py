@@ -1,7 +1,7 @@
 """
 数据库模型定义与初始化
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import sessionmaker, declarative_base
 import bcrypt
@@ -20,7 +20,7 @@ class Organization(Base):
     name = Column(String(128), nullable=False)
     parent_id = Column(Integer, ForeignKey("organization.id"), nullable=True)
     disabled = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 class User(Base):
@@ -34,7 +34,7 @@ class User(Base):
     department = Column(String(128), default="")
     full_name = Column(String(64), default="")
     enabled = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
     last_login = Column(DateTime)
 
     def verify_password(self, password):
@@ -47,7 +47,7 @@ class DeviceBinding(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     fingerprint_hash = Column(String(128), nullable=False, index=True)
     approved = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 class GuestSession(Base):
@@ -56,8 +56,8 @@ class GuestSession(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     guest_token = Column(String(64), unique=True, nullable=False, index=True)
     consult_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
 
 class WorkOrder(Base):
@@ -71,8 +71,8 @@ class WorkOrder(Base):
     result = Column(Text)
     created_by = Column(Integer, ForeignKey("users.id"))
     assigned_to = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
 
 class Contract(Base):
@@ -84,7 +84,7 @@ class Contract(Base):
     audit_report_path = Column(String(512))
     status = Column(String(16), default="uploaded")
     risk_summary = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 class Consultation(Base):
@@ -95,7 +95,7 @@ class Consultation(Base):
     answer = Column(Text)
     role_used = Column(String(16))
     work_order_id = Column(Integer, ForeignKey("work_orders.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 class AuditRecord(Base):
@@ -106,7 +106,7 @@ class AuditRecord(Base):
     findings = Column(JSON)
     risk_level = Column(String(16))
     report_path = Column(String(512))
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 class ContractTemplate(Base):
@@ -122,8 +122,8 @@ class ContractTemplate(Base):
     version = Column(Integer, default=1)                  # 版本号
     status = Column(String(16), default="active")         # active/disabled
     created_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
 
 class GeneratedContract(Base):
@@ -136,7 +136,7 @@ class GeneratedContract(Base):
     filled_data = Column(JSON, default=dict)              # 用户填写的数据
     output_path = Column(String(512))                     # 生成文件路径
     status = Column(String(16), default="generated")      # generated/downloaded
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 

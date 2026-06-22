@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from .config import BASE_DIR, WEB_DIR, USER_CONTRACT_DIR, KB_UPLOAD_DIR, SAVE_DIR, HOST, PORT
+from .config import BASE_DIR, WEB_DIR, REACT_WEB_DIR, USER_CONTRACT_DIR, KB_UPLOAD_DIR, SAVE_DIR, HOST, PORT
 from .database import init_db, get_db, User, Contract, Consultation, WorkOrder, AuditRecord, DeviceBinding, Organization, GuestSession, ContractTemplate, GeneratedContract
 from .user_auth.auth import (register, login, get_current_user, get_optional_user, require_admin,
                              set_auth_cookie, hash_fingerprint, create_guest_session)
@@ -40,9 +40,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files: React app assets + legacy web_front
+if REACT_WEB_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=str(REACT_WEB_DIR / "assets")), name="react_assets")
 app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
 app.include_router(contract_template_router)
+
+
+# SPA helper: serve React index.html for all frontend pages
+def _spa_response():
+    index_path = REACT_WEB_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    return HTMLResponse("<h1>前端未构建，请运行 cd web_app && npm run build</h1>", status_code=503)
 
 
 @app.on_event("startup")
@@ -57,28 +68,27 @@ async def startup():
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
-    return FileResponse(str(WEB_DIR / "index.html"))
+    return _spa_response()
 
 @app.get("/audit", response_class=HTMLResponse)
 async def audit_page():
-    return FileResponse(str(WEB_DIR / "audit.html"))
+    return _spa_response()
 
 @app.get("/work-order", response_class=HTMLResponse)
 async def work_order_page():
-    return FileResponse(str(WEB_DIR / "work_order.html"))
+    return _spa_response()
 
 @app.get("/history", response_class=HTMLResponse)
 async def history_page():
-    return FileResponse(str(WEB_DIR / "history.html"))
-
+    return _spa_response()
 
 @app.get("/contract-template", response_class=HTMLResponse)
 async def contract_template_page():
-    return FileResponse(str(WEB_DIR / "contract_template.html"))
+    return _spa_response()
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page():
-    return FileResponse(str(WEB_DIR / "admin_login.html"))
+    return _spa_response()
 
 
 # ==================== 认证接口 ====================

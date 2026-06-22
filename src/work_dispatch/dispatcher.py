@@ -1,7 +1,7 @@
 """
 工单分发调度模块：客服统一收单、按需派单流转
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from ..database import WorkOrder
 
@@ -29,7 +29,7 @@ def assign_order(db: Session, order_id: int, role: str) -> WorkOrder:
         raise ValueError("工单不存在")
     order.assigned_role = role
     order.status = "pending"
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(order)
     return order
@@ -42,7 +42,7 @@ def accept_order(db: Session, order_id: int, user_id: int) -> WorkOrder:
         raise ValueError("工单不存在")
     order.status = "processing"
     order.assigned_to = user_id
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(order)
     return order
@@ -55,7 +55,7 @@ def complete_order(db: Session, order_id: int, result: str) -> WorkOrder:
         raise ValueError("工单不存在")
     order.status = "done"
     order.result = result
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(order)
     return order
@@ -69,7 +69,7 @@ def return_order(db: Session, order_id: int, reason: str) -> WorkOrder:
     order.status = "returned"
     order.result = f"[退回原因] {reason}"
     order.assigned_role = "csr"  # 退回给客服
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(order)
     return order
@@ -95,7 +95,7 @@ def transfer_order(db: Session, order_id: int, to_role: str) -> WorkOrder:
     order.assigned_role = to_role
     order.status = "pending"
     order.assigned_to = None
-    order.updated_at = datetime.utcnow()
+    order.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(order)
     return order

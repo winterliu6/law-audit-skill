@@ -5,7 +5,7 @@ Smart field detection + precise fill-back (preserves original formatting)
 import os
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -97,7 +97,7 @@ async def admin_auto_detect(template_id: int, user: dict = Depends(require_admin
     if not fields:
         fields = _get_fallback_fields(tpl.category or "其他")
     tpl.fill_fields = fields
-    tpl.updated_at = datetime.utcnow()
+    tpl.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"code": 0, "msg": f"识别完成，发现 {len(fields)} 个待填写字段", "data": fields}
 
@@ -111,7 +111,7 @@ async def update_fill_fields(template_id: int, request: Request, user: dict = De
     body = await request.json()
     fields = body.get("fields", [])
     tpl.fill_fields = fields
-    tpl.updated_at = datetime.utcnow()
+    tpl.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"code": 0, "msg": "字段已更新"}
 
@@ -172,7 +172,7 @@ async def update_template(
         tpl.template_file_path = str(file_path)
         tpl.template_text = _extract_template_text(str(file_path))
     tpl.version += 1
-    tpl.updated_at = datetime.utcnow()
+    tpl.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"code": 0, "msg": "模板已更新"}
 
@@ -351,7 +351,7 @@ async def user_history(user: dict = Depends(get_current_user), db: Session = Dep
 
 # ==================== Internal helper functions ====================
 
-def _convert_doc_to_docx(doc_path: str) -> typing.Optional[str]:
+def _convert_doc_to_docx(doc_path: str) -> Optional[str]:
     """Convert .doc to .docx. Tries: LibreOffice headless > doc2docx > win32com."""
     import subprocess
     parent = str(Path(doc_path).parent)

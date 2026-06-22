@@ -32,6 +32,7 @@ IDENTITY_DIR = BASE_DIR / "identity"
 
 # 前端
 WEB_DIR = BASE_DIR / "web_front"
+REACT_WEB_DIR = BASE_DIR / "web_app" / "dist"
 
 # 安全 — 生产环境务必通过环境变量 SECRET_KEY 覆盖
 SECRET_KEY = os.environ.get("SECRET_KEY", "CHANGE-ME-IN-PRODUCTION")

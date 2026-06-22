@@ -406,9 +406,8 @@ async function generate() {
     var d = await r.json();
     if (d.code !== 0) throw new Error(esc(d.msg || '生成失败'));
 
-    var fileName = (d.data && d.data.file_name != null) ? String(d.data.file_name) : (title + '.docx');
-    var recordId = d.data && d.data.record_id;
-    var dlUrl = recordId ? '/api/contract-template/download/' + recordId : '#';
+    var fileName = (d.data && d.data.title != null) ? String(d.data.title) : (title + '.docx');
+    var dlUrl = d.data && d.data.download_url ? d.data.download_url : '#';
     document.getElementById('resultArea').innerHTML =
       '<div class="result-box"><h3>🎉 生成成功</h3>' +
       '<p>文件名：' + esc(fileName) + '</p>' +

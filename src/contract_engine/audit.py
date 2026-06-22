@@ -63,7 +63,7 @@ async def analyze_contract(text: str, kb_context: str = "") -> dict:
     合同风险分析：结合知识库法条+LLM推理
     """
     kb_results = kb_search(text[:500], n_results=5)
-    kb_text = chr(10).join([r["text"] for r in kb_results])
+    kb_text = "\n".join([r["text"] for r in kb_results])
 
     system_prompt = """你是一位资深合同审核专家。请根据合同文本和相关法律条文，进行专业的合同风险分析。
 
@@ -84,9 +84,9 @@ async def analyze_contract(text: str, kb_context: str = "") -> dict:
 }
 仅返回JSON。"""
 
-    user_msg = f"合同文本：{chr(10)}{text[:5000]}{chr(10)}{chr(10)}相关法条：{chr(10)}{kb_text}"
+    user_msg = f"合同文本：{"\n"}{text[:5000]}{"\n"}{"\n"}相关法条：{"\n"}{kb_text}"
     if kb_context:
-        user_msg += f"{chr(10)}{chr(10)}额外参考：{chr(10)}{kb_context}"
+        user_msg += f"{"\n"}{"\n"}额外参考：{"\n"}{kb_context}"
 
     result = await call_llm(system_prompt, user_msg)
     try:
@@ -97,7 +97,7 @@ async def analyze_contract(text: str, kb_context: str = "") -> dict:
 
 async def generate_report(contract_id: int, analysis_result: dict) -> str:
     """生成审核报告并保存到本地"""
-    report_filename = f"audit_report_{contract_id}_{datetime.now().strftime(chr(37)+"Y"+chr(37)+"m"+chr(37)+"d_"+chr(37)+"H"+chr(37)+"M"+chr(37)+"S")}.json"
+    report_filename = f"audit_report_{contract_id}_{datetime.now():%Y%m%d_%H%M%S}.json"
     report_path = SAVE_DIR / report_filename
     report = {
         "contract_id": contract_id,
@@ -117,7 +117,7 @@ async def compare_contracts(text_a: str, text_b: str) -> dict:
     """合同比对"""
     system_prompt = """对比两份合同，找出主要差异。返回JSON：
 {"differences": [{"aspect": "差异方面", "contract_a": "A内容", "contract_b": "B内容", "significance": "high/medium/low"}], "summary": "概述"}"""
-    result = await call_llm(system_prompt, f"合同A：{chr(10)}{text_a[:3000]}{chr(10)}{chr(10)}合同B：{chr(10)}{text_b[:3000]}")
+    result = await call_llm(system_prompt, f"合同A：{"\n"}{text_a[:3000]}{"\n"}{"\n"}合同B：{"\n"}{text_b[:3000]}")
     try:
         return _clean_json_response(result)
     except:
