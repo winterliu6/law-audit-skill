@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>法务审核系统 - 合同模板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,"Microsoft YaHei",sans-serif;background:#f0f2f5;min-height:100vh;display:flex;flex-direction:column;color:#333}
+/* Topbar */
+.topbar{background:#1a237e;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px;flex-shrink:0}
+.topbar h1{font-size:18px;font-weight:600;white-space:nowrap}
+.topbar nav{display:flex;gap:4px}
+.topbar nav a{color:rgba(255,255,255,.7);text-decoration:none;padding:8px 16px;border-radius:6px;font-size:14px;transition:all .15s;white-space:nowrap}
+.topbar nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+.topbar nav a.active{background:rgba(255,255,255,.2);color:#fff;font-weight:600}
+.topbar .info{display:flex;align-items:center;gap:14px;font-size:13px;white-space:nowrap}
+.topbar .info .model-tag{background:rgba(255,255,255,.15);padding:4px 10px;border-radius:12px;font-size:12px}
+.topbar .info .btn-login{background:#4caf50;border:none;color:#fff;padding:5px 16px;border-radius:4px;cursor:pointer;font-size:13px}
+.topbar .info .btn-logout{background:#1a237e;border:1px solid rgba(255,255,255,.4);color:#fff;padding:4px 14px;border-radius:4px;cursor:pointer;font-size:13px}
+/* Content */
+.content{flex:1;overflow-y:auto;padding:28px 40px}
+/* Modal overlay - MUST BE display:none by default */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:99999}
+.modal-overlay.show{display:flex}
+/* Modal box */
+.modal{background:#fff;border-radius:12px;padding:32px;width:380px;max-width:92vw;box-shadow:0 8px 32px rgba(0,0,0,.25);position:relative}
+.modal h2{text-align:center;color:#1a237e;margin-bottom:24px;font-size:20px}
+.modal input,.modal select{width:100%;padding:10px 12px;border:1px solid #d0d0d0;border-radius:6px;margin-bottom:14px;font-size:14px;outline:none;font-family:inherit;background:#fff}
+.modal input:focus,.modal select:focus{border-color:#1a237e;box-shadow:0 0 0 2px rgba(26,35,126,.1)}
+.modal .btn-row{display:flex;gap:10px;margin-top:8px}
+.modal button{flex:1;padding:10px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:all .15s}
+.modal .btn-primary{background:#1a237e;color:#fff}
+.modal .btn-primary:hover{background:#283593}
+.modal .error{color:#c62828;font-size:13px;margin-bottom:8px;display:none;background:#ffebee;padding:8px 12px;border-radius:6px}
+.modal .tabs{display:flex;margin-bottom:20px;background:#f0f2f5;border-radius:8px;padding:3px}
+.modal .tabs button{flex:1;padding:8px;background:transparent;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#666;transition:all .15s}
+.modal .tabs button.active{background:#fff;color:#1a237e;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{background:#f5f6fa;color:#1a237e;font-weight:600;padding:10px 14px;text-align:left;border-bottom:2px solid #e0e0e0;font-size:13px}
+tbody td{padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#555}
+tbody tr:hover{background:#f8f9ff}
+/* Panels */
+.panel,.section{background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.panel h3,.section h3{font-size:16px;color:#1a237e;margin-bottom:12px;font-weight:600}
+.page-title{font-size:22px;font-weight:700;color:#1a237e;margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid #e8e8e8}
+/* Upload zone */
+.upload-zone{border:2px dashed #c0c4cc;border-radius:8px;padding:30px 20px;text-align:center;cursor:pointer;transition:all .15s;background:#fafafa;margin-bottom:16px}
+.upload-zone:hover{border-color:#1a237e;background:#f5f6fa}
+.upload-zone .icon{font-size:40px;margin-bottom:8px}
+/* Stat cards */
+.grid{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:16px}
+.stat-card{flex:1;min-width:160px;background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.stat-card h4{font-size:13px;color:#888;margin-bottom:6px}
+.stat-card .num{font-size:28px;font-weight:700;color:#1a237e}
+/* Status tags */
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:500}
+.tag-pending{background:#fff3e0;color:#e65100}
+.tag-processing{background:#e3f2fd;color:#1565c0}
+.tag-done{background:#e8f5e9;color:#2e7d32}
+/* Chat */
+.chat-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.chat-flow{flex:1;overflow-y:auto;padding:24px 32px;display:flex;flex-direction:column;gap:16px}
+.msg{display:flex;gap:10px;max-width:75%}.msg.ai{align-self:flex-start}.msg.user{align-self:flex-end;flex-direction:row-reverse}
+.msg .avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.msg.ai .avatar{background:#e8eaf6;color:#1a237e}.msg.user .avatar{background:#e3f2fd;color:#0d47a1}
+.msg .bubble{padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.msg.ai .bubble{background:#fff;border:1px solid #e0e0e0;border-top-left-radius:4px}
+.msg.user .bubble{background:#1a237e;color:#fff;border-top-right-radius:4px}
+.input-bar{border-top:1px solid #e0e0e0;background:#fff;padding:12px 24px;display:flex;gap:12px;align-items:flex-end}
+.input-bar textarea{flex:1;resize:none;border:1px solid #d0d0d0;border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;line-height:1.5;max-height:120px;outline:none}
+.input-bar textarea:focus{border-color:#1a237e}
+.input-bar button{background:#1a237e;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;cursor:pointer}
+.welcome{text-align:center;color:#888;padding:40px 20px}.welcome h2{color:#1a237e;font-size:20px;margin-bottom:10px}
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}
+
+/* == Contract Template Page Layout == */
+.page{flex:1;overflow-y:auto;padding:28px 40px}
+.main-layout{display:flex;gap:24px;align-items:flex-start}
+.main-layout .card{flex:1;min-width:0}
+.main-layout .card:first-child{max-width:360px;flex-shrink:0}
+.main-layout .card:last-child{flex:2}
+.card{background:#fff;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.08);border:1px solid #f0f0f0}
+.card h3{font-size:16px;color:#1a237e;margin-bottom:16px;font-weight:600;padding-bottom:10px;border-bottom:1px solid #f0f0f0}
+/* Template list */
+.tpl-list{max-height:500px;overflow-y:auto}
+.tpl-item{padding:12px 14px;border:1px solid #eee;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.tpl-item:hover{border-color:#1a237e;background:#f8f9ff}
+.tpl-item.selected{border-color:#1a237e;background:#e8eaf6;box-shadow:0 0 0 2px rgba(26,35,126,.1)}
+.tpl-name{font-size:14px;font-weight:600;color:#333;margin-bottom:4px}
+.tpl-cat{font-size:12px;color:#888;margin-bottom:4px}
+.tpl-desc{font-size:12px;color:#999;line-height:1.5}
+.tpl-meta{font-size:11px;color:#bbb;margin-top:4px}
+.empty{padding:40px 20px;text-align:center;color:#999;font-size:14px}
+/* Form styles */
+.form-row{display:flex;gap:12px;flex-wrap:wrap}
+.form-group{flex:1;min-width:180px;margin-bottom:12px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:#555;margin-bottom:4px}
+.form-control{width:100%;padding:9px 12px;border:1px solid #d0d0d0;border-radius:6px;font-size:13px;outline:none;transition:border-color .15s;font-family:inherit;background:#fff}
+.form-control:focus{border-color:#1a237e;box-shadow:0 0 0 2px rgba(26,35,126,.08)}
+textarea.form-control{resize:vertical;min-height:60px;line-height:1.5}
+select.form-control{appearance:auto}
+.field-group{margin-bottom:16px;padding:12px;background:#fafbfc;border-radius:8px;border:1px solid #f0f0f0}
+.field-group-title{font-size:13px;font-weight:600;color:#1a237e;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #eee}
+.field-item{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:#fff;border-radius:4px;border:1px solid #eee}
+.field-item .fkey{font-size:12px;color:#888;font-family:monospace;min-width:80px}
+.field-item .fdel{padding:2px 8px;background:#ffebee;border:none;border-radius:4px;color:#c62828;font-size:12px;cursor:pointer}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;text-decoration:none}
+.btn-primary{background:#1a237e;color:#fff}
+.btn-primary:hover{background:#283593;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.btn-secondary{background:#f0f0f0;color:#555}
+.btn-secondary:hover{background:#e0e0e0}
+.btn-sm{padding:6px 14px;font-size:12px}
+/* Result box */
+.result-box{background:#e8f5e9;border:1px solid #c8e6c9;border-radius:8px;padding:16px;margin-top:12px}
+.result-box h3{color:#2e7d32;font-size:15px;margin-bottom:8px;border-bottom:none;padding:0}
+.result-box p{font-size:13px;color:#555;margin-bottom:4px}
+.result-box a{color:#1a237e;font-weight:600;text-decoration:underline}
+/* Spinner */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:4px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Scrollbar */
+.tpl-list::-webkit-scrollbar{width:5px}
+.tpl-list::-webkit-scrollbar-thumb{background:#ddd;border-radius:3px}
+/* Responsive */
+@media(max-width:900px){.main-layout{flex-direction:column}.main-layout .card:first-child{max-width:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>⚖️ 法务审核系统</h1>
+  <nav><a href="/">法务咨询</a><a href="/audit">合同审核</a><a href="/work-order">工单管理</a><a href="/history">历史记录</a><a href="/contract-template" class="active">合同模板</a><a href="/admin">管理后台</a></nav>
+  <div class="info">
+    <span class="model-tag" id="modelTag">--</span>
+    <span id="userDisplay" onclick="openLogin()" style="cursor:pointer;color:rgba(255,255,255,.8)">游客</span>
+  </div>
+</div>
+<div class="page">
+  <div class="page-title">📄 合同模板管理</div>
+  <div class="main-layout">
+    <div class="card">
+      <h3>📄 选择模板</h3>
+      <div class="tpl-list" id="tplList"><div class="empty">加载中...</div></div>
+    </div>
+    <div class="card" id="formCard">
+      <h3 id="formTitle">填写合同信息</h3>
+      <div id="formArea">
+        <div class="empty">请先选择模板</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="loginModal" style="display:none">
+  <div class="modal">
+    <h2>⚖️ 登录</h2>
+    <div class="error-msg" id="errorBox"></div>
+    <input type="text" id="authUser" placeholder="用户名">
+    <input type="password" id="authPass" placeholder="密码">
+    <div class="btn-row">
+      <button class="btn-primary2" onclick="doAuth()">登 录</button>
+    </div>
+  </div>
+</div>
+<script>
+var currentUser = null;
+var templates = [];
+var selectedTpl = null;
+var formFields = [];
+
+/* ── Safe HTML escaper (fixed: handles null/number/object) ── */
+function esc(s) {
+  if (s == null) return '';
+  var str = typeof s === 'string' ? s : String(s);
+  return str.replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
+}
+
+async function getGuestToken() { var gt = localStorage.getItem('guest_token'); if (!gt) { gt = 'guest_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); localStorage.setItem('guest_token', gt); } return gt; }
+async function checkAuth() {
+  try {
+    var r = await fetch('/api/me');
+    if (!r.ok) throw new Error();
+    var d = await r.json();
+    if (d.code === 0) {
+      currentUser = d.data;
+      var ud = document.getElementById('userDisplay');
+      if (ud) {
+        ud.textContent = esc(currentUser.username) + ' (' + esc(currentUser.role) + ')';
+        ud.onclick = null;  // remove openLogin from user span when logged in
+      }
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+function openLogin() { console.log('[Auth] openLogin'); var m=document.getElementById('loginModal'); if(m){ m.style.display='flex'; m.classList.add('show'); } }
+function closeLogin() { var m=document.getElementById('loginModal'); if(m){ m.style.display='none'; m.classList.remove('show'); } var e=document.getElementById('errorBox'); if(e)e.style.display='none'; }
+
+async function showLoginErr(m) { var el=document.getElementById('errorBox'); if(el){el.textContent=m;el.style.display='block';} }
+
+async function loadTemplates() {
+  try {
+    var r = await fetch('/api/contract-template/list');
+    var d = await r.json();
+    if (d.code !== 0) throw new Error(d.msg || '加载失败');
+    templates = d.data || [];
+    renderTplList();
+  } catch (e) {
+    document.getElementById('tplList').innerHTML =
+      '<div class="empty">加载失败: ' + esc(e && e.message) + '</div>';
+  }
+}
+
+function renderTplList() {
+  var el = document.getElementById('tplList');
+  if (!templates || templates.length === 0) {
+    el.innerHTML = '<div class="empty">暂无模板。</div>';
+    return;
+  }
+  el.innerHTML = templates.map(function(t) {
+    var id = t && t.id != null ? String(t.id) : '0';
+    var name = esc(t && t.name) || '未命名模板';
+    var cat = esc(t && t.category) || '其他';
+    var desc = esc(t && t.description) || '暂无说明';
+    var fc = t && t.fields_count != null ? String(t.fields_count) : '0';
+    return '<div class="tpl-item" id="tpl_' + id + '" onclick="selectTpl(' + id + ')">' +
+      '<div class="tpl-name">' + name + '</div>' +
+      '<div class="tpl-cat">' + cat + '</div>' +
+      '<div class="tpl-desc">' + desc + '</div>' +
+      '<div class="tpl-meta">字段数: ' + fc + ' | 点击选择</div></div>';
+  }).join('');
+}
+
+async function selectTpl(id) {
+  if (!currentUser) { openLogin(); return; }
+  // highlight
+  document.querySelectorAll('.tpl-item').forEach(function(el) { el.classList.remove('selected'); });
+  var el = document.getElementById('tpl_' + id);
+  if (el) el.classList.add('selected');
+
+  selectedTpl = templates.find(function(t) { return t && t.id == id; });
+  if (!selectedTpl) return;
+
+  document.getElementById('formTitle').textContent =
+    '📝填写 ' + esc(selectedTpl && selectedTpl.name) + ' - 信息';
+  document.getElementById('formArea').innerHTML =
+    '<div class="empty">正在获取字段信息，请等候...</div>';
+
+  try {
+    var r = await fetch('/api/contract-template/' + id + '/auto-fields');
+    var d = await r.json();
+    if (d.code !== 0) throw new Error(esc(d.msg || '获取字段失败'));
+    formFields = (d.data && Array.isArray(d.data.fields)) ? d.data.fields : getFallback();
+    renderForm();
+  } catch (e) {
+    formFields = getFallback();
+    renderForm();
+  }
+}
+
+function getFallback() {
+  return [
+    {key:'party_a_name',   label:'甲方（名称）',         type:'text',   group:'甲乙双方信息'},
+    {key:'party_a_rep',    label:'甲方法定代表人',   type:'text',   group:'甲乙双方信息'},
+    {key:'party_a_address',label:'甲方地址',              type:'text',   group:'甲乙双方信息'},
+    {key:'party_a_phone',  label:'甲方联系电话',           type:'text',   group:'甲乙双方信息'},
+    {key:'party_b_name',   label:'乙方（名称）',         type:'text',   group:'甲乙双方信息'},
+    {key:'party_b_rep',    label:'乙方法定代表人',   type:'text',   group:'甲乙双方信息'},
+    {key:'party_b_address',label:'乙方地址',              type:'text',   group:'甲乙双方信息'},
+    {key:'party_b_phone',  label:'乙方联系电话',           type:'text',   group:'甲乙双方信息'},
+    {key:'total_amount',   label:'合同总金额（元）',      type:'number', group:'金额信息'},
+    {key:'sign_date',      label:'签订日期',              type:'date',   group:'日期信息'},
+    {key:'effective_date',label:'生效日期',              type:'date',   group:'日期信息'},
+    {key:'service_content',label:'服务内容',              type:'textarea',group:'合同内容'},
+    {key:'other_terms',    label:'补充条款',              type:'textarea',group:'合同内容'},
+  ];
+}
+
+function renderForm() {
+  var container = document.getElementById('formArea');
+  if (!formFields || formFields.length === 0) {
+    formFields = getFallback();
+  }
+
+  var groups = {};
+  formFields.forEach(function(f) {
+    if (!f || !f.key) return;
+    var g = f.group || '合同内容';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(f);
+  });
+
+  var typeMap = {text:'text',number:'number',date:'date',textarea:'textarea'};
+  var html = '';
+
+  // Contract title
+  html += '<div class="form-group"><label>合同标题 <span style="color:#c62828">*</span></label>' +
+    '<input type="text" class="form-control" id="contractTitle" placeholder="如：火策电影城 《XXX》保洁服务合同（2026年）"></div>';
+
+  Object.keys(groups).forEach(function(g) {
+    html += '<div class="field-group"><div class="field-group-title">' + esc(g) + '</div>';
+    var gfields = groups[g];
+    var shortFields = gfields.filter(function(f) { return f.type !== 'textarea'; });
+    var longFields  = gfields.filter(function(f) { return f.type === 'textarea'; });
+
+    if (shortFields.length) {
+      html += '<div class="form-row">';
+      shortFields.forEach(function(f) {
+        var inpType = typeMap[f.type] || 'text';
+        html += '<div class="form-group"><label>' + esc(f.label || f.key) + '</label>' +
+          '<input type="' + inpType + '" class="form-control" id="f_' + esc(f.key) + '" ' +
+          'placeholder="请填写' + esc(f.label || f.key) + '"' +
+          (inpType === 'number' ? ' step="0.01"' : '') + '></div>';
+      });
+      html += '</div>';
+    }
+    longFields.forEach(function(f) {
+      html += '<div class="form-group"><label>' + esc(f.label || f.key) + '</label>' +
+        '<textarea class="form-control" id="f_' + esc(f.key) + '" rows="3" ' +
+        'placeholder="请填写' + esc(f.label || f.key) + '"></textarea></div>';
+    });
+    html += '</div>';
+  });
+
+  // Manual add
+  html += '<div class="field-group"><div class="field-group-title">+ 手动添加字段</div>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">';
+  html += '<input type="text" class="form-control" id="addKey" placeholder="字段KEY（英文）" style="width:130px">';
+  html += '<input type="text" class="form-control" id="addLabel" placeholder="字段名称（中文）" style="width:130px">';
+  html += '<select class="form-control" id="addType" style="width:100px">';
+  html += '<option value="text">文本</option><option value="number">数字</option>';
+  html += '<option value="date">日期</option><option value="textarea">多行</option>';
+  html += '</select>';
+  html += '<button class="btn btn-secondary btn-sm" onclick="addField()">添加</button></div>';
+  html += '<div id="fieldsList"></div></div>';
+
+  // Generate button
+  html += '<div class="btn-row"><button class="btn btn-primary" id="genBtn" onclick="generate()">生成合同 →</button></div>';
+  html += '<div id="resultArea"></div>';
+
+  container.innerHTML = html;
+  updateFieldsList();
+}
+
+function addField() {
+  var key = document.getElementById('addKey').value.trim();
+  var label = document.getElementById('addLabel').value.trim();
+  var type = document.getElementById('addType').value;
+  if (!key || !label) { alert('请填写字段KEY和名称'); return; }
+  if (formFields.some(function(f) { return f && f.key === key; })) {
+    alert('字段KEY已存在'); return;
+  }
+  formFields.push({key:key, label:label, type:type, group:'合同内容', required:false});
+  renderForm();
+  document.getElementById('addKey').value = '';
+  document.getElementById('addLabel').value = '';
+}
+
+function updateFieldsList() {
+  var box = document.getElementById('fieldsList');
+  if (!box) return;
+  box.innerHTML = formFields.map(function(f, i) {
+    if (!f) return '';
+    return '<div class="field-item">' +
+      '<span class="fkey">' + esc(f.key || '') + '</span>' +
+      '<span style="flex:1;font-size:13px">' + esc(f.label || f.key || '') + ' <span style="color:#999;font-size:11px">(' + esc(f.type || 'text') + ')</span></span>' +
+      '<button class="fdel" onclick="delField(' + i + ')">删除</button></div>';
+  }).join('');
+}
+
+function delField(idx) { formFields.splice(idx, 1); updateFieldsList(); }
+
+async function generate() {
+  if (!currentUser) { openLogin(); return; }
+  var title = document.getElementById('contractTitle').value.trim();
+  if (!title) { alert('请填写合同标题'); return; }
+
+  var filled = {};
+  document.querySelectorAll('#formArea input,#formArea select,#formArea textarea').forEach(function(el) {
+    var id = el.id;
+    if (id && id.indexOf('f_') === 0) {
+      var key = id.slice(2);
+      if (key) filled[key] = el.value.trim();
+    }
+  });
+  filled.title = title;
+
+  var btn = document.getElementById('genBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>生成中...';
+
+  try {
+    var r = await fetch('/api/contract-template/generate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        template_id: selectedTpl && selectedTpl.id ? selectedTpl.id : 0,
+        filled_data: filled,
+        title: title
+      })
+    });
+    var d = await r.json();
+    if (d.code !== 0) throw new Error(esc(d.msg || '生成失败'));
+
+    var fileName = (d.data && d.data.file_name != null) ? String(d.data.file_name) : (title + '.docx');
+    var recordId = d.data && d.data.record_id;
+    var dlUrl = recordId ? '/api/contract-template/download/' + recordId : '#';
+    document.getElementById('resultArea').innerHTML =
+      '<div class="result-box"><h3>🎉 生成成功</h3>' +
+      '<p>文件名：' + esc(fileName) + '</p>' +
+      '<p style="font-size:13px;color:#666">生成时间：' + new Date().toLocaleString('中文-CN') + '</p>' +
+      '<p><a href="' + esc(dlUrl) + '" target="_blank">点击下载合同文档</a></p></div>';
+  } catch (e) {
+    alert('生成失败: ' + esc(e && e.message ? e.message : '网络错误'));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '生成合同 →';
+  }
+}
+
+checkAuth().then(function(ok) { loadTemplates(); });
+
+function doAuth(){ console.log('[Auth] doAuth called'); var u=document.getElementById('authUser').value.trim(); var p=document.getElementById('authPass').value.trim(); if(!u||!p){ showLoginErr('请输入用户名和密码'); return; } var fd=new FormData(); fd.append('username',u); fd.append('password',p); fd.append('device_fingerprint',navigator.userAgent+'|'+screen.width+'x'+screen.height); console.log('[Auth] Sending POST /api/login'); fetch('/api/login',{method:'POST',body:fd}).then(function(r){ console.log('[Auth] Response status='+r.status); return r.json(); }).then(function(d){ console.log('[Auth] Response:',d); if(d.code!==0){ showLoginErr(d.msg||d.detail||'登录失败'); return; } currentUser=d.data; document.getElementById('loginModal').style.display='none'; var ud=document.getElementById('userDisplay'); if(ud) ud.textContent=esc(currentUser.username)+' ('+esc(currentUser.role)+')'; loadTemplates(); }).catch(function(e){ console.error('[Auth] Error:',e); showLoginErr('网络错误'); }); }
+
+</script>
+</body>
+</html>

@@ -38,7 +38,7 @@ def _clean_json_response(text: str) -> dict:
     return json.loads(cleaned.strip())
 
 
-def extract_key_info(text: str) -> dict:
+async def extract_key_info(text: str) -> dict:
     """提取合同关键信息：主体、日期、条款、义务"""
     system_prompt = """你是一位专业的合同分析助手。请从合同文本中提取以下关键信息，以JSON格式返回：
 {
@@ -51,8 +51,7 @@ def extract_key_info(text: str) -> dict:
     "dispute_resolution": "争议解决方式"
 }
 仅返回JSON，不要其他文字。"""
-    import asyncio
-    result = asyncio.run(call_llm(system_prompt, text[:3000]))
+    result = await call_llm(system_prompt, text[:3000])
     try:
         return _clean_json_response(result)
     except (json.JSONDecodeError, IndexError):

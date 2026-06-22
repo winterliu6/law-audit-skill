@@ -109,6 +109,37 @@ class AuditRecord(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ContractTemplate(Base):
+    """合同模板表"""
+    __tablename__ = "contract_templates"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(256), nullable=False)           # 模板名称
+    category = Column(String(64), nullable=False)         # 分类：劳动合同/采购合同/租赁合同/...
+    description = Column(Text, default="")                # 模板说明
+    template_file_path = Column(String(512))              # 模板文件路径(docx)
+    template_text = Column(Text, default="")              # 模板纯文本内容(供LLM使用)
+    fill_fields = Column(JSON, default=list)              # 可填写字段列表 [{key,label,type,required,options}]
+    version = Column(Integer, default=1)                  # 版本号
+    status = Column(String(16), default="active")         # active/disabled
+    created_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GeneratedContract(Base):
+    """已生成合同记录"""
+    __tablename__ = "generated_contracts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    template_id = Column(Integer, ForeignKey("contract_templates.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    title = Column(String(256), nullable=False)           # 合同标题
+    filled_data = Column(JSON, default=dict)              # 用户填写的数据
+    output_path = Column(String(512))                     # 生成文件路径
+    status = Column(String(16), default="generated")      # generated/downloaded
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+
 def init_db():
     Base.metadata.create_all(engine)
     db = SessionLocal()

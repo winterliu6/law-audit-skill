@@ -19,6 +19,9 @@ KB_UPLOAD_DIR = UPLOAD_DIR / "kb_upload"
 SAVE_DIR = BASE_DIR / "save_audit_report"
 DATASET_DIR = BASE_DIR / "dataset"
 WORK_ORDER_DIR = BASE_DIR / "work_order_record"
+TEMPLATE_DIR = UPLOAD_DIR / "templates"
+GENERATED_CONTRACT_DIR = UPLOAD_DIR / "generated_contracts"
+
 
 # 知识库
 KB_DIR = BASE_DIR / "src" / "law_kb"
@@ -55,5 +58,5 @@ for _p in [
 LLM_SYNC_INTERVAL = 5  # 模型同步轮询间隔（秒）
 
 # 确保目录存在
-for d in [USER_CONTRACT_DIR, KB_UPLOAD_DIR, SAVE_DIR, DATASET_DIR, WORK_ORDER_DIR, CHROMA_DIR]:
+for d in [USER_CONTRACT_DIR, KB_UPLOAD_DIR, SAVE_DIR, DATASET_DIR, WORK_ORDER_DIR, CHROMA_DIR, TEMPLATE_DIR, GENERATED_CONTRACT_DIR]:
     d.mkdir(parents=True, exist_ok=True)

@@ -110,32 +110,44 @@ def _strip_think_tags(text):
 
 
 def _sync_loop():
-    """后台轮询线程：每5秒检查Hermes配置是否变化"""
+    """后台轮询线程：检查Hermes配置变化，失败时重试最多3次（间隔30秒）"""
     global _cached_config
     while True:
-        try:
-            for config_path in HERMES_CONFIG_PATHS:
-                if config_path.exists():
-                    parsed = _parse_hermes_config(config_path)
-                    if parsed:
-                        with _config_lock:
-                            changed = (
-                                parsed.get("model") != _cached_config.get("model") or
-                                parsed.get("base_url") != _cached_config.get("base_url") or
-                                parsed.get("api_key") != _cached_config.get("api_key")
-                            )
-                            if changed:
-                                _cached_config.update(parsed)
-                                _cached_config["synced"] = True
-                                _cached_config["last_sync"] = time.strftime("%Y-%m-%d %H:%M:%S")
-                                _cached_config["source"] = str(config_path)
-                                _cached_config["error"] = None
-                                print(f"[LLM同步] 模型已更新: {parsed.get('model')} ({parsed.get('base_url', '')})")
+        success = False
+        for attempt in range(1, 4):
+            try:
+                for config_path in HERMES_CONFIG_PATHS:
+                    if config_path.exists():
+                        parsed = _parse_hermes_config(config_path)
+                        if parsed:
+                            with _config_lock:
+                                changed = (
+                                    parsed.get("model") != _cached_config.get("model") or
+                                    parsed.get("base_url") != _cached_config.get("base_url") or
+                                    parsed.get("api_key") != _cached_config.get("api_key")
+                                )
+                                if changed:
+                                    _cached_config.update(parsed)
+                                    _cached_config["synced"] = True
+                                    _cached_config["last_sync"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                                    _cached_config["source"] = str(config_path)
+                                    _cached_config["error"] = None
+                                    print(f"[LLM同步] 模型已更新: {parsed.get('model')} ({parsed.get('base_url', '')})")
+                            success = True
+                            break
+                    else:
+                        success = True
+                if success:
                     break
-        except Exception as e:
-            with _config_lock:
-                _cached_config["error"] = str(e)
-            print(f"[LLM同步] 同步异常: {e}")
+            except Exception as e:
+                with _config_lock:
+                    _cached_config["error"] = str(e)
+                print(f"[LLM同步] 同步异常 (尝试 {attempt}/3): {e}")
+            if attempt < 3:
+                print(f"[LLM同步] 将在30秒后重试...")
+                time.sleep(30)
+        if not success:
+            print(f"[LLM同步] 连续3次同步失败，等待下次轮询")
         time.sleep(LLM_SYNC_INTERVAL)
 
 

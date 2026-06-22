@@ -3,6 +3,7 @@
 FastAPI + uvicorn，监听0.0.0.0:3330（仅局域网）
 """
 import os
+import asyncio
 import json
 import shutil
 import secrets
@@ -18,18 +19,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .config import BASE_DIR, WEB_DIR, USER_CONTRACT_DIR, KB_UPLOAD_DIR, SAVE_DIR, HOST, PORT
-from .database import init_db, get_db, User, Contract, Consultation, WorkOrder, AuditRecord, DeviceBinding, Organization, GuestSession
+from .database import init_db, get_db, User, Contract, Consultation, WorkOrder, AuditRecord, DeviceBinding, Organization, GuestSession, ContractTemplate, GeneratedContract
 from .user_auth.auth import (register, login, get_current_user, get_optional_user, require_admin,
                              set_auth_cookie, hash_fingerprint, create_guest_session)
 from .llm_sync.sync import start_sync, get_llm_config, call_llm
+from .expert_link.expert_bridge import get_expert_context
 from .law_kb.knowledge_base import init_base_knowledge, search as kb_search, parse_pdf, parse_docx, add_document, rebuild_index
 from .contract_engine.audit import parse_contract, analyze_contract, generate_report, extract_key_info
+from .contract_template.api import router as contract_template_router
 from .work_dispatch.dispatcher import create_order, get_orders, accept_order, complete_order, return_order, transfer_order
 
 app = FastAPI(title="法务审核系统", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
+    # 生产环境加固：如对外暴露，建议将 allow_origins 从 ["*"] 改为具体域名列表
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -37,6 +41,8 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+
+app.include_router(contract_template_router)
 
 
 @app.on_event("startup")
@@ -64,6 +70,11 @@ async def work_order_page():
 @app.get("/history", response_class=HTMLResponse)
 async def history_page():
     return FileResponse(str(WEB_DIR / "history.html"))
+
+
+@app.get("/contract-template", response_class=HTMLResponse)
+async def contract_template_page():
+    return FileResponse(str(WEB_DIR / "contract_template.html"))
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page():
@@ -125,11 +136,23 @@ async def api_guest_consultation(request: Request, db: Session = Depends(get_db)
         return {"code": 1, "msg": "游客试用已满10轮，请注册账号后继续使用", "locked": True}
     kb_results = kb_search(question, n_results=3)
     kb_context = "\n".join([r["text"] for r in kb_results]) if kb_results else ""
+    expert_ctx = get_expert_context(question)
     csr_prompt = "你是法务审核系统的客服专员。请根据知识库内容回答用户的法律咨询。回答要专业、简洁、有条理。"
+    if expert_ctx:
+        csr_prompt += f"\n\n可引用的外部法律专家：\n{expert_ctx}\n\n在回答中可根据需要引用上述专家意见。"
     user_msg = f"用户提问：{question}"
     if kb_context:
         user_msg += f"\n\n相关法条参考：\n{kb_context}"
-    answer = await call_llm(csr_prompt, user_msg)
+    # Quick LLM availability check
+    llm_cfg = get_llm_config()
+    if not llm_cfg.get("api_key") and not llm_cfg.get("synced"):
+        return {"code": 1, "msg": "LLM模型未配置，请先在管理后台检查模型同步状态"}
+    try:
+        answer = await asyncio.wait_for(call_llm(csr_prompt, user_msg), timeout=15)
+    except asyncio.TimeoutError:
+        return {"code": 1, "msg": "LLM响应超时，请稍后再试"}
+    except Exception as e:
+        return {"code": 1, "msg": f"LLM服务暂不可用: {str(e)[:80]}"}
     gs.consult_count += 1
     db.commit()
     return {"code": 0, "data": {"answer": answer, "remaining": 10 - gs.consult_count}, "locked": False}
@@ -155,11 +178,23 @@ async def api_consultation(request: Request, user: dict = Depends(get_current_us
         raise HTTPException(400, "请输入咨询内容")
     kb_results = kb_search(question, n_results=3)
     kb_context = "\n".join([r["text"] for r in kb_results]) if kb_results else ""
+    expert_ctx = get_expert_context(question)
     csr_prompt = "你是法务审核系统的客服专员。请根据知识库内容回答用户的法律咨询。回答要专业、简洁、有条理。"
+    if expert_ctx:
+        csr_prompt += f"\n\n可引用的外部法律专家：\n{expert_ctx}\n\n在回答中可根据需要引用上述专家意见。"
     user_msg = f"用户提问：{question}"
     if kb_context:
         user_msg += f"\n\n相关法条参考：\n{kb_context}"
-    answer = await call_llm(csr_prompt, user_msg)
+    # Quick LLM availability check
+    llm_cfg = get_llm_config()
+    if not llm_cfg.get("api_key") and not llm_cfg.get("synced"):
+        return {"code": 1, "msg": "LLM模型未配置，请先在管理后台检查模型同步状态"}
+    try:
+        answer = await asyncio.wait_for(call_llm(csr_prompt, user_msg), timeout=15)
+    except asyncio.TimeoutError:
+        return {"code": 1, "msg": "LLM响应超时，请稍后再试"}
+    except Exception as e:
+        return {"code": 1, "msg": f"LLM服务暂不可用: {str(e)[:80]}"}
     need_dispatch = any(kw in answer for kw in ["建议咨询", "需要专业", "已转派", "复杂"])
     work_order_id = None
     if need_dispatch:
@@ -170,12 +205,14 @@ async def api_consultation(request: Request, user: dict = Depends(get_current_us
     db.add(record)
     db.commit()
     return {"code": 0, "data": {"answer": answer, "work_order_id": work_order_id}}
-
-
 # ==================== 合同接口 ====================
 
 @app.post("/api/contract/upload")
 async def api_upload_contract(file: UploadFile = File(...), user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return {"code": 1, "msg": "不支持的文件格式"}
     uid_dir = USER_CONTRACT_DIR / str(user["user_id"])
     uid_dir.mkdir(parents=True, exist_ok=True)
     file_path = uid_dir / file.filename
@@ -602,10 +639,13 @@ async def api_admin_update_dept(user_id: int, request: Request, user: dict = Dep
 
 @app.post("/api/admin/kb/upload")
 async def api_admin_kb_upload(file: UploadFile = File(...), user: dict = Depends(require_admin)):
+    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt"}
+    ext = Path(file.filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        return {"code": 1, "msg": "不支持的文件格式"}
     file_path = KB_UPLOAD_DIR / file.filename
     with open(file_path, "wb") as f:
         f.write(await file.read())
-    ext = Path(file.filename).suffix.lower()
     if ext == ".pdf":
         text = parse_pdf(str(file_path))
     elif ext == ".docx":
@@ -619,7 +659,7 @@ async def api_admin_kb_upload(file: UploadFile = File(...), user: dict = Depends
 
 @app.post("/api/admin/kb/rebuild")
 async def api_admin_kb_rebuild(user: dict = Depends(require_admin)):
-    rebuild_index()
+    await asyncio.to_thread(rebuild_index)
     return {"code": 0, "msg": "索引重建完成"}
 
 
