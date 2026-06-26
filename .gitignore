@@ -1,43 +1,38 @@
 # Python
 __pycache__/
 *.py[cod]
-*.egg-info/
+*.pyo
 .venv/
 venv/
-*.egg
+*.egg-info/
+dist/
+build/
 
-# 数据库（含用户数据，不上传）
-law_audit.db
-*.db-journal
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
-# ChromaDB向量库（运行时生成）
-src/law_kb/chroma_db/
-
-# 用户上传文件（隐私数据）
-upload/user_contract/
-upload/kb_upload/
-
-# 审核报告（含合同内容）
-save_audit_report/
-
-# 数据集（运行时生成）
-dataset/
-
-# 工单记录（业务数据）
-work_order_record/
+# Environment
+.env
+.env.*
+!env.example
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# 环境变量
-.env
-.env.local
-.env.production
+# Project specific
+upload/
+save_audit_report/
+work_order_record/
+dataset/
+chroma_db/
+node_modules/

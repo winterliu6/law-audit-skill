@@ -387,6 +387,35 @@ function OverviewTab() {
                   {modelInfo.model}
                 </Badge>
               </div>
+              <select
+                className="px-2 py-1 rounded border border-slate-300 text-xs font-mono bg-white dark:bg-slate-800"
+                value={modelInfo.model}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const prev = modelInfo.model;
+                  setModelInfo((p) => p ? { ...p, model: val } : p);
+                  api.switchModel(val).then((res) => {
+                    const r = res;
+                    if (r?.code !== 0) setModelInfo((p) => p ? { ...p, model: prev } : p);
+                  }).catch(() => setModelInfo((p) => p ? { ...p, model: prev } : p));
+                }}
+              >
+                <option value="MiniMax-M2.7">MiniMax-M2.7</option>
+                <option value="MiniMax-M2.5">MiniMax-M2.5</option>
+                <option value="mimo-v2.5-pro">mimo-v2.5-pro</option>
+                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+              </select>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                onClick={() => {
+                  api.switchModel(modelInfo.model).then((res) => {
+                    const r = res;
+                    if (r?.code !== 0) alert('切换失败');
+                  }).catch(() => alert('切换失败'));
+                }}
+              >应用</Button>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 dark:text-slate-500">同步状态</span>
                 {modelInfo.synced ? (

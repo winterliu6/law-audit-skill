@@ -26,10 +26,11 @@ from .llm_sync.sync import start_sync, get_llm_config, call_llm
 from .expert_link.expert_bridge import get_expert_context
 from .law_kb.knowledge_base import init_base_knowledge, search as kb_search, parse_pdf, parse_docx, add_document, rebuild_index
 from .contract_engine.audit import parse_contract, analyze_contract, generate_report, extract_key_info
+from .docx_comments import generate_annotated_docx
 from .contract_template.api import router as contract_template_router
 from .work_dispatch.dispatcher import create_order, get_orders, accept_order, complete_order, return_order, transfer_order
 
-app = FastAPI(title="法务审核系统", version="2.0.0")
+app = FastAPI(title="法务审核系统", version="2.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,9 +54,7 @@ def _spa_response():
     index_path = REACT_WEB_DIR / "index.html"
     if index_path.exists():
         return FileResponse(str(index_path))
-    return HTMLResponse("<h1>前端未构建，请运行 cd web_app && npm run build</h1>", status_code=503)
-
-
+    return HTMLResponse("<h1>524d7aef672a67845efaFf0c8bf78fd0884c cd web_app && npm run build</h1>", status_code=503)
 @app.on_event("startup")
 async def startup():
     init_db()
@@ -69,27 +68,25 @@ async def startup():
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return _spa_response()
-
 @app.get("/audit", response_class=HTMLResponse)
 async def audit_page():
     return _spa_response()
-
 @app.get("/work-order", response_class=HTMLResponse)
 async def work_order_page():
     return _spa_response()
-
 @app.get("/history", response_class=HTMLResponse)
 async def history_page():
     return _spa_response()
-
 @app.get("/contract-template", response_class=HTMLResponse)
 async def contract_template_page():
     return _spa_response()
-
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page():
     return _spa_response()
 
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page():
+    return _spa_response()
 
 # ==================== 认证接口 ====================
 
@@ -158,11 +155,13 @@ async def api_guest_consultation(request: Request, db: Session = Depends(get_db)
     if not llm_cfg.get("api_key") and not llm_cfg.get("synced"):
         return {"code": 1, "msg": "LLM模型未配置，请先在管理后台检查模型同步状态"}
     try:
-        answer = await asyncio.wait_for(call_llm(csr_prompt, user_msg), timeout=15)
+        model_name = body.get("model") or None
+        answer = await asyncio.wait_for(call_llm(csr_prompt, user_msg, model_name), timeout=30)
     except asyncio.TimeoutError:
         return {"code": 1, "msg": "LLM响应超时，请稍后再试"}
     except Exception as e:
-        return {"code": 1, "msg": f"LLM服务暂不可用: {str(e)[:80]}"}
+        import traceback; traceback.print_exc()
+        return {"code": 1, "msg": f"LLM服务暂不可用: {str(e)[:200]}"}
     gs.consult_count += 1
     db.commit()
     return {"code": 0, "data": {"answer": answer, "remaining": 10 - gs.consult_count}, "locked": False}
@@ -200,11 +199,13 @@ async def api_consultation(request: Request, user: dict = Depends(get_current_us
     if not llm_cfg.get("api_key") and not llm_cfg.get("synced"):
         return {"code": 1, "msg": "LLM模型未配置，请先在管理后台检查模型同步状态"}
     try:
-        answer = await asyncio.wait_for(call_llm(csr_prompt, user_msg), timeout=15)
+        model_name = body.get("model") or None
+        answer = await asyncio.wait_for(call_llm(csr_prompt, user_msg, model_name), timeout=30)
     except asyncio.TimeoutError:
         return {"code": 1, "msg": "LLM响应超时，请稍后再试"}
     except Exception as e:
-        return {"code": 1, "msg": f"LLM服务暂不可用: {str(e)[:80]}"}
+        import traceback; traceback.print_exc()
+        return {"code": 1, "msg": f"LLM服务暂不可用: {str(e)[:200]}"}
     need_dispatch = any(kw in answer for kw in ["建议咨询", "需要专业", "已转派", "复杂"])
     work_order_id = None
     if need_dispatch:
@@ -244,111 +245,67 @@ async def api_contract_status(contract_id: int, user: dict = Depends(get_current
     return {"code": 0, "data": {"status": contract.status, "risk_summary": contract.risk_summary}}
 
 
-@app.get("/api/contract/{cid}/download-docx")
-async def api_download_docx(cid: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    contract = db.query(Contract).filter(Contract.id == cid, Contract.user_id == user["user_id"]).first()
+
+@app.get("/api/contract/{contract_id}/risks")
+async def api_get_contract_risks(contract_id: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """获取已审核合同的风险数据（不重新审核，直接读取存储的结果）"""
+    contract = db.query(Contract).filter(Contract.id == contract_id, Contract.user_id == user["user_id"]).first()
     if not contract:
-        raise HTTPException(404, "Contract not found")
-    from docx import Document
-    from docx.shared import Pt, RGBColor
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    from docx.enum.table import WD_TABLE_ALIGNMENT
+        raise HTTPException(404, "合同不存在")
+    if contract.status != "audited":
+        return {"code": 1, "msg": "合同尚未审核完成", "data": None}
     risks = []
     if contract.risk_summary:
         try:
             risks = json.loads(contract.risk_summary)
         except:
             risks = []
-    doc = Document()
-    style = doc.styles["Normal"]
-    style.font.size = Pt(11)
-    title = doc.add_heading("Contract Audit Report", level=0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    doc.add_paragraph("File: " + str(contract.filename))
-    doc.add_paragraph("Status: " + str(contract.status))
-    doc.add_paragraph("Audit Time: " + str(contract.created_at))
-    doc.add_paragraph("Risk Count: " + str(len(risks)))
-    doc.add_paragraph("")
-    contract_text = ""
-    if contract.original_path and os.path.exists(contract.original_path):
+    return {"code": 0, "data": {
+        "contract_id": contract.id,
+        "filename": contract.filename,
+        "status": contract.status,
+        "risks": risks,
+        "created_at": str(contract.created_at)
+    }}
+
+@app.get("/api/contract/{cid}/download-docx")
+async def api_download_docx(cid: int, user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """下载带批注的合同审核文档：风险点位置直接标注+Word批注+风险汇总表"""
+    contract = db.query(Contract).filter(Contract.id == cid, Contract.user_id == user["user_id"]).first()
+    if not contract:
+        raise HTTPException(404, "合同不存在")
+    risks = []
+    if contract.risk_summary:
         try:
-            contract_text = parse_contract(contract.original_path)
+            risks = json.loads(contract.risk_summary)
         except:
-            contract_text = ""
-    doc.add_heading("Section 1: Contract Text with Risk Annotations", level=1)
-    if contract_text:
-        for para_text in contract_text.split(chr(10)):
-            para_text = para_text.strip()
-            if not para_text:
-                continue
-            p = doc.add_paragraph()
-            matched = None
-            for risk in risks:
-                clause = risk.get("clause", "")
-                if clause and len(clause) > 5 and clause[:8] in para_text:
-                    matched = risk
-                    break
-                pos = risk.get("position", "")
-                if pos and pos in para_text:
-                    matched = risk
-                    break
-            if matched:
-                lv = matched.get("level", "low")
-                color = RGBColor(0xC6, 0x28, 0x28) if lv == "high" else RGBColor(0xEF, 0x6C, 0x00) if lv == "medium" else RGBColor(0x2E, 0x7D, 0x32)
-                run = p.add_run(para_text)
-                run.font.color.rgb = color
-                run.bold = True
-                try:
-                    from docx.oxml.ns import qn
-                    rPr = run._element.get_or_add_rPr()
-                    hl = rPr.makeelement(qn("w:highlight"), {qn("w:val"): "yellow"})
-                    rPr.append(hl)
-                except:
-                    pass
-                lv_map = {"high": "HIGH RISK", "medium": "MEDIUM", "low": "LOW"}
-                note = p.add_run("  [" + lv_map.get(lv, lv) + "] " + matched.get("description", ""))
-                note.font.size = Pt(9)
-                note.font.color.rgb = color
-                note.italic = True
-            else:
-                p.add_run(para_text)
-    else:
-        doc.add_paragraph("(Original contract text not readable)")
-    doc.add_heading("Section 2: Risk Summary Table", level=1)
-    if risks:
-        table = doc.add_table(rows=1, cols=5)
-        table.style = "Table Grid"
-        table.alignment = WD_TABLE_ALIGNMENT.CENTER
-        for i, h in enumerate(["No.", "Level", "Position", "Description", "Legal Basis / Suggestion"]):
-            cell = table.rows[0].cells[i]
-            cell.text = h
-            for para in cell.paragraphs:
-                for run in para.runs:
-                    run.bold = True
-                    run.font.size = Pt(10)
-        for idx, risk in enumerate(risks, 1):
-            row = table.add_row()
-            row.cells[0].text = str(idx)
-            lv = risk.get("level", "low")
-            row.cells[1].text = {"high": "HIGH", "medium": "MEDIUM", "low": "LOW"}.get(lv, lv)
-            row.cells[2].text = risk.get("position", risk.get("clause", "-"))
-            row.cells[3].text = risk.get("description", "-")
-            basis = ""
-            if risk.get("law_basis"):
-                basis = "Basis: " + risk["law_basis"]
-            if risk.get("suggestion"):
-                if basis:
-                    basis += chr(10)
-                basis += "Suggestion: " + risk["suggestion"]
-            row.cells[4].text = basis or "-"
-    else:
-        doc.add_paragraph("No risks found.")
-    doc.add_paragraph("")
-    p_disc = doc.add_paragraph("This report is AI-generated by Law Audit System. For reference only.")
-    p_disc.runs[0].italic = True
-    output_path = str(SAVE_DIR / f"audit_report_{cid}.docx")
-    doc.save(output_path)
-    return FileResponse(output_path, filename=f"audit_report_{cid}.docx", media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            risks = []
+    output_path = str(SAVE_DIR / f"annotated_contract_{cid}.docx")
+    try:
+        file_path = contract.original_path if (contract.original_path and os.path.exists(contract.original_path)) else None
+        generate_annotated_docx(file_path, risks, output_path)
+    except Exception as e:
+        # Fallback: create a basic document
+        from docx import Document
+        from docx.shared import Pt
+        doc = Document()
+        doc.add_heading("合同审核结果", level=0)
+        doc.add_paragraph(f"文件名: {contract.filename}")
+        doc.add_paragraph(f"审核时间: {contract.created_at}")
+        doc.add_paragraph(f"风险点数: {len(risks)}")
+        if risks:
+            for idx, risk in enumerate(risks, 1):
+                lv = risk.get("level", "low")
+                label = {"high": "高风险", "medium": "中风险", "low": "低风险"}.get(lv, lv)
+                doc.add_paragraph(f"{idx}. [{label}] {risk.get('description', '-')}")
+                if risk.get("suggestion"):
+                    doc.add_paragraph(f"   修改建议: {risk['suggestion']}")
+        doc.save(output_path)
+    return FileResponse(
+        output_path,
+        filename=f"{contract.filename.replace('.','_')}_审核批注版.docx",
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
 
 
 @app.post("/api/contract/{contract_id}/audit")
@@ -386,6 +343,7 @@ async def api_audit_contract(contract_id: int, user: dict = Depends(get_current_
     analysis["risks"] = normalized_risks
     contract.risk_summary = json.dumps(normalized_risks, ensure_ascii=False)
     db.commit()
+    analysis["filename"] = contract.filename
     return {"code": 0, "msg": "审核完成", "data": analysis}
 
 
@@ -675,10 +633,133 @@ async def api_admin_kb_rebuild(user: dict = Depends(require_admin)):
 
 # ==================== 模型状态 & 设备管理 ====================
 
+@app.get("/api/dashboard")
+async def api_dashboard(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """法务仪表盘数据聚合（多维度）"""
+    from collections import Counter, defaultdict
+    uid = user["user_id"]
+    role = user.get("role", "user")
+    # Admin sees all contracts, regular users see only their own
+    if role == "admin":
+        contracts = db.query(Contract).order_by(Contract.created_at.desc()).all()
+        consultations = db.query(Consultation).order_by(Consultation.created_at.desc()).all()
+    else:
+        contracts = db.query(Contract).filter(Contract.user_id == uid).order_by(Contract.created_at.desc()).all()
+        consultations = db.query(Consultation).filter(Consultation.user_id == uid).order_by(Consultation.created_at.desc()).all()
+
+    total = len(contracts)
+    audited = sum(1 for c in contracts if c.status == "audited")
+    pending = total - audited
+    high_risk = 0
+    risk_types = Counter()
+    monthly = Counter()
+    recent_contracts = []
+    recent_activities = []
+
+    for c in contracts:
+        # Risk analysis
+        if c.risk_summary:
+            try:
+                risks = json.loads(c.risk_summary)
+                if any(r.get("level") == "high" for r in risks):
+                    high_risk += 1
+                for r in risks:
+                    rt = r.get("description", "").strip()
+                    if rt:
+                        risk_types[rt] += 1
+            except:
+                pass
+
+        # Monthly stats
+        if c.created_at:
+            month_key = c.created_at.strftime("%Y-%m")
+            monthly[month_key] += 1
+
+        # Recent contracts
+        if len(recent_contracts) < 8:
+            recent_contracts.append({
+                "id": c.id, "filename": c.filename,
+                "status": c.status, "created_at": str(c.created_at)
+            })
+
+        # Activity feed
+        if len(recent_activities) < 15:
+            recent_activities.append({
+                "type": "upload" if c.status == "uploaded" else "audit_done" if c.status == "audited" else "audit",
+                "desc": f"上传合同 {c.filename}" if c.status == "uploaded" else f"完成审核 {c.filename}",
+                "time": str(c.created_at)[:16]
+            })
+
+    for co in consultations[:10]:
+        if len(recent_activities) < 20:
+            recent_activities.append({
+                "type": "consult",
+                "desc": f"法务咨询: {co.question[:30]}...",
+                "time": str(co.created_at)[:16]
+            })
+
+    recent_activities.sort(key=lambda x: x["time"], reverse=True)
+    recent_activities = recent_activities[:15]
+
+    # Contract type guess based on filename
+    type_map = {"租赁": 0, "采购": 0, "劳务": 0, "服务": 0, "销售": 0, "其他": 0}
+    for c in contracts:
+        name = c.filename
+        matched = False
+        for t in type_map:
+            if t in name:
+                type_map[t] += 1
+                matched = True
+                break
+        if not matched:
+            type_map["其他"] += 1
+
+    return {"code": 0, "data": {
+        "total_contracts": total,
+        "audited_contracts": audited,
+        "high_risk_contracts": high_risk,
+        "pending_contracts": pending,
+        "total_consultations": len(consultations),
+        "risk_types": [{"name": k, "count": v} for k, v in risk_types.most_common(8)],
+        "monthly": [{"month": k, "count": v} for k, v in sorted(monthly.items())],
+        "contract_types": [{"name": k, "count": v} for k, v in type_map.items() if v > 0],
+        "recent_contracts": recent_contracts[:8],
+        "recent_activities": recent_activities[:15]
+    }}
+
 @app.get("/api/admin/model-status")
 async def api_model_status(user: dict = Depends(require_admin)):
     cfg = get_llm_config()
     return {"code": 0, "data": {"model": cfg.get("model", "未配置"), "synced": cfg.get("synced", False), "last_sync": cfg.get("last_sync"), "source": cfg.get("source"), "error": cfg.get("error")}}
+
+@app.post("/api/admin/change-password")
+async def api_change_password(request: Request, user: dict = Depends(require_admin), db: Session = Depends(get_db)):
+    """管理员修改任意用户密码"""
+    body = await request.json()
+    user_id = body.get("user_id")
+    new_password = body.get("new_password", "")
+    if not user_id or not new_password or len(new_password) < 6:
+        return {"code": 1, "msg": "请提供有效用户ID和密码（至少6位）"}
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        return {"code": 1, "msg": "用户不存在"}
+    import bcrypt
+    target.password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    db.commit()
+    return {"code": 0, "msg": f"用户 {target.username} 密码已更新"}
+
+@app.post("/api/admin/switch-model")
+async def api_switch_model(request: Request, user: dict = Depends(require_admin)):
+    """切换全局LLM模型"""
+    body = await request.json()
+    model = body.get("model", "")
+    if not model:
+        return {"code": 1, "msg": "请指定模型名称"}
+    from .llm_sync.sync import _cached_config
+    _cached_config["model"] = model
+    from .llm_sync.sync import set_manual_model
+    set_manual_model(model)
+    return {"code": 0, "msg": f"模型已切换至 {model}", "data": {"model": model}}
 
 @app.post("/api/admin/device/approve/{binding_id}")
 async def api_approve_device(binding_id: int, user: dict = Depends(require_admin), db: Session = Depends(get_db)):

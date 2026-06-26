@@ -15,6 +15,17 @@ from ..config import HERMES_CONFIG_PATHS, LLM_SYNC_INTERVAL
 
 _logger = logging.getLogger("law_audit.llm")
 _config_lock = threading.Lock()
+_manual_model = None  # Set by switch-model API, persists until overridden
+
+
+def set_manual_model(model_name: str):
+    """Set manual model override that persists across sync cycles"""
+    global _manual_model
+    _manual_model = model_name
+    with _config_lock:
+        _cached_config["model"] = model_name
+
+
 _cached_config = {
     "model": "unknown",
     "base_url": "",
@@ -128,12 +139,13 @@ def _sync_loop():
                                 )
                                 if changed:
                                     _cached_config.update(parsed)
-                                    _cached_config["synced"] = True
-                                    _cached_config["last_sync"] = time.strftime("%Y-%m-%d %H:%M:%S")
-                                    _cached_config["source"] = str(config_path)
-                                    _cached_config["error"] = None
-                                    print(f"[LLM同步] 模型已更新: {parsed.get('model')} ({parsed.get('base_url', '')})")
-                            success = True
+                                if _manual_model:
+                                    _cached_config["model"] = _manual_model
+                                _cached_config["synced"] = True
+                                _cached_config["last_sync"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                                _cached_config["source"] = str(config_path)
+                                _cached_config["error"] = None
+                                print(f"[LLM同步] 模型已更新: {_manual_model or parsed.get('model', 'unknown')}")
                             break
                     else:
                         success = True
@@ -157,8 +169,8 @@ def get_llm_config():
         return dict(_cached_config)
 
 
-async def call_llm(system_prompt, user_message):
-    """统一LLM调用接口，自动剥离思考标签"""
+async def call_llm(system_prompt, user_message, model_name=None):
+    """统一LLM调用接口，自动剥离思考标签。model_name可覆盖默认模型"""
     cfg = get_llm_config()
     api_key = cfg.get("api_key", "")
     if not api_key:
@@ -167,8 +179,9 @@ async def call_llm(system_prompt, user_message):
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
+    active_model = model_name or cfg.get("model", "unknown")
     payload = {
-        "model": cfg["model"],
+        "model": active_model,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message}

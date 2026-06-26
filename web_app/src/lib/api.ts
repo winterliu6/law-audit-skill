@@ -55,6 +55,7 @@ export const api = {
     request(`/api/contract/${contractId}/status`),
   auditContract: (contractId: number) =>
     request(`/api/contract/${contractId}/audit`, { method: 'POST' }),
+  contractRisks: (contractId: number) => request(`/api/contract/${contractId}/risks`),
   downloadDocx: (cid: number) => `/api/contract/${cid}/download-docx`,
 
   // Work Orders
@@ -89,9 +90,22 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }),
+  dashboard: () => request('/api/dashboard'),
   templateHistory: () => request('/api/contract-template/history'),
 
   // Admin
+  changePassword: (userId: number, newPassword: string) =>
+    request('/api/admin/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId, new_password: newPassword }),
+    }),
+  switchModel: (model: string) =>
+    request('/api/admin/switch-model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model }),
+    }),
   modelStatus: () => request('/api/admin/model-status'),
   orgTree: () => request('/api/admin/org/tree'),
   orgOptions: () => request('/api/org/options'),

@@ -453,6 +453,22 @@ export default function Audit() {
 
   // Track active polling so it can be cancelled on unmount / retry
   const pollingRef = useRef<boolean>(true);
+  // Load existing contracts from API on mount/re-mount
+  useEffect(() => {
+    if (!user) return;
+    api.history().then((res: any) => {
+      if (res?.code === 0 && res.data?.contracts) {
+        setContracts(res.data.contracts.map((c: any) => ({
+          id: c.id,
+          filename: c.filename,
+          fileSize: 0,
+          uploadedAt: new Date(c.created_at || Date.now()),
+          status: c.status === 'audited' ? 'done' : c.status === 'auditing' ? 'processing' : 'pending',
+        })));
+      }
+    }).catch(() => {});
+  }, [user]);
+
 
   // -------------------------------------------------------------------------
   // File upload handler
@@ -662,6 +678,7 @@ export default function Audit() {
       return next;
     });
   }, []);
+const handleViewRisk = useCallback(    async (contractId: number) => {      try {        const res = await api.contractRisks(contractId);        const r = res as { code?: number; data?: unknown };        if (r?.code === 0 && r.data) {          const result = parseAuditResult(res);          setResults((prev) => ({ ...prev, [contractId]: result }));          setContracts((prev) =>            prev.map((c) =>              c.id === contractId ? { ...c, status: "done" as ContractStatus } : c            )          );        }      } catch {}    },    []  );
 
   // -------------------------------------------------------------------------
   // Scroll to results when a new audit completes
@@ -755,7 +772,6 @@ export default function Audit() {
               </TableHeader>
               <TableBody>
                 {contracts.map((contract) => {
-                  const result = results[contract.id];
                   const isAuditing = auditingId === contract.id;
 
                   return (
@@ -828,7 +844,7 @@ export default function Audit() {
                           )}
 
                           {/* Download report */}
-                          {contract.status === 'done' && result && (
+                          {contract.status === 'done' && (
                             <Button
                               asChild
                               size="sm"
@@ -855,6 +871,19 @@ export default function Audit() {
                               aria-label="移除"
                             >
                               <X className="w-3.5 h-3.5" />
+                            </Button>
+                          )}
+
+                          {/* View risks */}
+                          {contract.status === 'done' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewRisk(contract.id)}
+                              className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                            >
+                              <FileSearch className="w-3.5 h-3.5" />
+                              查看风险
                             </Button>
                           )}
                         </div>

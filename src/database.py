@@ -151,7 +151,7 @@ def init_db():
                 role="admin", company="系统管理", department="技术部", full_name="管理员"
             ))
             db.commit()
-            print("[初始化] 管理员账号: admin/admin123")
+            print("[初始化] 管理员账号已创建 (admin)")
         for u in db.query(User).filter(User.company == None).all():
             u.company = ""
             u.department = ""
